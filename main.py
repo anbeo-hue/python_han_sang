@@ -154,6 +154,7 @@ class WarehouseLoginApp(customtkinter.CTk):
             pass
 
 
+
     def setup_right_panel(self):
         # Panel bên phải có màu nền xám nhạt (#f1f5f9) để làm nổi bật Card màu trắng
         right_frame = customtkinter.CTkFrame(self, fg_color="#f1f5f9", corner_radius=0)

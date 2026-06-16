@@ -231,6 +231,9 @@ class DashboardWindow(customtkinter.CTk):
         elif self.active_tab_name == "Nhập Kho":
             import_view = ImportView(self.content_area, font_family=self.FONT_FAMILY)
             import_view.pack(expand=True, fill="both")
+        elif self.active_tab_name == "Xuất Kho":
+            export_view = ExportView(self.content_area, font_family=self.FONT_FAMILY)
+            export_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,
@@ -1336,7 +1339,7 @@ class ImportView(customtkinter.CTkScrollableFrame):
             
         # Dòng dữ liệu mẫu
         lbl_stt = customtkinter.CTkLabel(grid_frame, text="1", font=(self.FONT_FAMILY, 11), text_color="#1e293b")
-        lbl_stt.grid(row=1, column=0, padx=4, pady=5, sticky="center")
+        lbl_stt.grid(row=1, column=0, padx=4, pady=5)
         
         combo_nl = customtkinter.CTkComboBox(
             grid_frame,
@@ -1388,7 +1391,7 @@ class ImportView(customtkinter.CTkScrollableFrame):
             height=28,
             width=28
         )
-        del_btn.grid(row=1, column=7, padx=4, pady=5, sticky="center")
+        del_btn.grid(row=1, column=7, padx=4, pady=5)
         
         # ── 3. Footer (Tổng tiền bên trái, 2 nút bên phải) ──
         footer_frame = customtkinter.CTkFrame(
@@ -1445,6 +1448,157 @@ class ImportView(customtkinter.CTkScrollableFrame):
             command=popup.destroy
         )
         save_btn.pack(side="left", padx=5)
+
+
+class ExportView(customtkinter.CTkScrollableFrame):
+    """Màn hình Xuất Kho hiển thị các phiếu xuất hàng và danh sách hàng xuất."""
+    
+    def __init__(self, parent, font_family="Segoe UI"):
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
+        self.FONT_FAMILY = font_family
+        
+        # Cấu hình grid cho self (đối tượng cuộn)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
+        
+        # Dựng giao diện
+        self.create_table_section()
+        
+    def create_table_section(self):
+        """Tạo khu vực chứa bảng xuất kho (tìm kiếm và bảng Treeview)."""
+        table_container = customtkinter.CTkFrame(
+            self,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        table_container.grid(row=0, column=0, sticky="nsew", pady=(0, 15))
+        
+        # ── 1. Thanh công cụ (Toolbar) ──
+        toolbar = customtkinter.CTkFrame(
+            table_container,
+            fg_color="transparent"
+        )
+        toolbar.pack(fill="x", padx=15, pady=15)
+        
+        # Ô tìm kiếm bên trái
+        search_entry = customtkinter.CTkEntry(
+            toolbar,
+            placeholder_text="Tìm mã hoặc tên nguyên liệu 🔍",
+            font=(self.FONT_FAMILY, 12),
+            width=300,
+            height=34,
+            corner_radius=6,
+            fg_color="#f8fafc",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            placeholder_text_color="#94a3b8"
+        )
+        search_entry.pack(side="left")
+        
+        # Nút "+ Thêm phiếu xuất" bên phải màu xanh dương nhạt
+        add_btn = customtkinter.CTkButton(
+            toolbar,
+            text="+ Thêm phiếu xuất",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#e0f2fe", # sky-100
+            hover_color="#bae6fd", # sky-200
+            text_color="#0369a1", # sky-700
+            corner_radius=6,
+            height=34
+        )
+        add_btn.pack(side="right")
+        
+        # ── 2. Bảng dữ liệu (ttk.Treeview) ──
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Cấu hình style cho Treeview
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure(
+            "Export.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=32,
+            font=(self.FONT_FAMILY, 11),
+            borderwidth=0
+        )
+        
+        style.map(
+            "Export.Treeview",
+            background=[("selected", "#e0f2fe")],
+            foreground=[("selected", "#0369a1")]
+        )
+        
+        style.configure(
+            "Export.Treeview.Heading",
+            background="#E5E7EB", # Nền tiêu đề xám nhạt như yêu cầu
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        table_frame = customtkinter.CTkFrame(table_container, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        columns = ("ma_lo", "nguyen_lieu", "sl_xuat", "don_vi", "ngay_xuat", "ly_do", "hsd")
+        
+        tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Export.Treeview"
+        )
+        
+        # Zebra Row tags
+        tree.tag_configure("evenrow", background="#ffffff")
+        tree.tag_configure("oddrow", background="#f8fafc")
+        
+        # Tiêu đề cột
+        headers = {
+            "ma_lo": "Mã lô hàng",
+            "nguyen_lieu": "Nguyên liệu",
+            "sl_xuat": "Số lượng xuất",
+            "don_vi": "Đơn vị",
+            "ngay_xuat": "Ngày xuất",
+            "ly_do": "Lý do xuất",
+            "hsd": "Hạn sử dụng"
+        }
+        
+        for col, heading in headers.items():
+            tree.heading(col, text=heading, anchor="w")
+            if col == "sl_xuat":
+                tree.column(col, anchor="e", width=110)
+            elif col in ["don_vi", "ngay_xuat", "hsd"]:
+                tree.column(col, anchor="center", width=100)
+            elif col == "ma_lo":
+                tree.column(col, anchor="w", width=110)
+            elif col == "ly_do":
+                tree.column(col, anchor="w", width=180)
+            else:
+                tree.column(col, anchor="w", width=140)
+                
+        # Mock data 3 dòng
+        mock_data = [
+            ("PN20601", "Thịt", "20", "kg", "10/5/2026", "", "15/5/2026"),
+            ("PN20601", "Thịt", "20", "", "10/5/2026", "", "15/5/2026"),
+            ("PN20601", "bánh mì", "20", "cái", "11/5/2026", "", "15/5/2026")
+        ]
+        
+        for i, item in enumerate(mock_data):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            tree.insert("", "end", values=item, tags=(row_tag,))
+            
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
 
 if __name__ == "__main__":

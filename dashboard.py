@@ -225,6 +225,9 @@ class DashboardWindow(customtkinter.CTk):
 
         if self.active_tab_name == "Dashboard":
             self.load_dashboard_content()
+        elif self.active_tab_name == "Tồn kho":
+            inventory_view = InventoryView(self.content_area, font_family=self.FONT_FAMILY)
+            inventory_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,
@@ -652,6 +655,229 @@ class DashboardWindow(customtkinter.CTk):
     def handle_logout(self):
         """Xử lý sự kiện đăng xuất."""
         self.destroy()
+
+
+class InventoryView(customtkinter.CTkScrollableFrame):
+    """Màn hình Tồn kho hiển thị các thẻ tổng quan và bảng dữ liệu nguyên liệu."""
+    
+    def __init__(self, parent, font_family="Segoe UI"):
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
+        self.FONT_FAMILY = font_family
+        
+        # Cấu hình grid cho self (đối tượng cuộn)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0) # Dòng 1: Cards
+        self.grid_rowconfigure(1, weight=1) # Dòng 2: Table Section
+        
+        # Gọi các hàm dựng từng phần
+        self.create_summary_cards()
+        self.create_table_section()
+        
+    def create_summary_cards(self):
+        """Tạo 4 thẻ tổng quan nằm ngang của màn hình Tồn kho."""
+        cards_container = customtkinter.CTkFrame(
+            self,
+            fg_color="transparent"
+        )
+        cards_container.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        
+        # Chia đều 4 cột
+        for i in range(4):
+            cards_container.grid_columnconfigure(i, weight=1, uniform="inv_card_cols")
+
+        # Cấu hình cho 4 card của Tồn kho
+        # (Icon, Title, Value, Color, Bg_color_for_icon, Text_color_for_value)
+        card_data = [
+            ("📦", "Tổng nguyên liệu", "120", "#10b981", "#e6f4ea", "#2ecc71"), # Xanh lá
+            ("🛒", "Tổng số lượng tồn kho", "1.234", "#3b82f6", "#e8f0fe", "#3498db"), # Xanh dương
+            ("🚚", "Tổng giá trị tồn kho", "15.200.000", "#a16207", "#fef9c3", "#d4ac0d"), # Vàng rêu
+            ("📈", "Số lượng nguyên liệu sắp hết", "12", "#ef4444", "#fee2e2", "#e74c3c") # Đỏ
+        ]
+
+        for i, (icon, title, val, color, icon_bg, val_color) in enumerate(card_data):
+            card = customtkinter.CTkFrame(
+                cards_container,
+                fg_color="#ffffff",
+                corner_radius=8,
+                border_width=1,
+                border_color="#e2e8f0"
+            )
+            # Dùng padx để tạo khoảng cách đẹp mắt
+            card.grid(row=0, column=i, sticky="nsew", padx=6 if i > 0 and i < 3 else (0, 6) if i == 0 else (6, 0))
+            
+            card.grid_columnconfigure(0, weight=0)
+            card.grid_columnconfigure(1, weight=1)
+            
+            # Icon badge tròn
+            icon_badge = customtkinter.CTkLabel(
+                card,
+                text=icon,
+                font=(self.FONT_FAMILY, 18),
+                text_color=color,
+                fg_color=icon_bg,
+                width=40,
+                height=40,
+                corner_radius=20
+            )
+            icon_badge.grid(row=0, column=0, rowspan=2, padx=12, pady=15, sticky="w")
+            
+            # Tiêu đề thẻ
+            title_lbl = customtkinter.CTkLabel(
+                card,
+                text=title,
+                font=(self.FONT_FAMILY, 11),
+                text_color="#64748b",
+                anchor="w"
+            )
+            title_lbl.grid(row=0, column=1, padx=(0, 12), pady=(12, 2), sticky="w")
+            
+            # Số liệu
+            val_lbl = customtkinter.CTkLabel(
+                card,
+                text=val,
+                font=(self.FONT_FAMILY, 16, "bold"),
+                text_color=val_color,
+                anchor="w"
+            )
+            val_lbl.grid(row=1, column=1, padx=(0, 12), pady=(0, 12), sticky="w")
+
+    def create_table_section(self):
+        """Tạo khu vực chứa bảng tồn kho (tìm kiếm và bảng Treeview)."""
+        table_container = customtkinter.CTkFrame(
+            self,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        table_container.grid(row=1, column=0, sticky="nsew", pady=(0, 15))
+        
+        # ── 1. Thanh công cụ (Toolbar) ──
+        toolbar = customtkinter.CTkFrame(
+            table_container,
+            fg_color="transparent"
+        )
+        toolbar.pack(fill="x", padx=15, pady=15)
+        
+        # Ô tìm kiếm bên trái
+        search_entry = customtkinter.CTkEntry(
+            toolbar,
+            placeholder_text="Tìm mã hoặc tên nguyên liệu 🔍",
+            font=(self.FONT_FAMILY, 12),
+            width=300,
+            height=34,
+            corner_radius=6,
+            fg_color="#f8fafc",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            placeholder_text_color="#94a3b8"
+        )
+        search_entry.pack(side="left")
+        
+        # Nút "+ Thêm nguyên liệu" bên phải màu xanh dương nhạt
+        add_btn = customtkinter.CTkButton(
+            toolbar,
+            text="+ Thêm nguyên liệu",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#e0f2fe", # sky-100
+            hover_color="#bae6fd", # sky-200
+            text_color="#0369a1", # sky-700
+            corner_radius=6,
+            height=34
+        )
+        add_btn.pack(side="right")
+        
+        # ── 2. Bảng dữ liệu (ttk.Treeview) ──
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Cấu hình style cho Treeview
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure(
+            "Inventory.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=32,
+            font=(self.FONT_FAMILY, 11),
+            borderwidth=0
+        )
+        
+        style.map(
+            "Inventory.Treeview",
+            background=[("selected", "#e0f2fe")],
+            foreground=[("selected", "#0369a1")]
+        )
+        
+        style.configure(
+            "Inventory.Treeview.Heading",
+            background="#f8fafc",
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        # Khung bọc bảng và thanh cuộn
+        table_frame = customtkinter.CTkFrame(table_container, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        columns = ("ma_nl", "ten_nl", "danh_muc", "sl_ton", "ton_min", "trang_thai", "gia_tri")
+        
+        tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Inventory.Treeview"
+        )
+        
+        # Cấu hình thẻ Zebra Row tag
+        tree.tag_configure("evenrow", background="#ffffff")
+        tree.tag_configure("oddrow", background="#f8fafc")
+        
+        # Tiêu đề cột
+        headers = {
+            "ma_nl": "Mã nguyên liệu",
+            "ten_nl": "Tên nguyên liệu",
+            "danh_muc": "Danh mục",
+            "sl_ton": "Số lượng tồn",
+            "ton_min": "Tồn kho tối thiểu",
+            "trang_thai": "Trạng thái tồn",
+            "gia_tri": "Giá trị"
+        }
+        
+        for col, heading in headers.items():
+            if col == "trang_thai":
+                tree.heading(col, text=heading, anchor="center")
+                tree.column(col, anchor="center", width=120)
+            elif col in ["sl_ton", "ton_min", "gia_tri"]:
+                tree.heading(col, text=heading, anchor="w")
+                tree.column(col, anchor="e", width=110)
+            elif col == "ma_nl":
+                tree.heading(col, text=heading, anchor="w")
+                tree.column(col, anchor="w", width=110)
+            else:
+                tree.heading(col, text=heading, anchor="w")
+                tree.column(col, anchor="w", width=130)
+                
+        # Mock data 3 dòng
+        mock_data = [
+            ("NL001", "Thịt bò", "Thịt", "20kg", "45kg", "Còn đủ", "4.000.000"),
+            ("NL002", "Thịt heo", "Thịt", "20kg", "45kg", "Sắp hết", "4.000.000"),
+            ("NL001", "Thịt bò", "Thịt", "20kg", "45kg", "Hết hàng", "4.000.000")
+        ]
+        
+        for i, item in enumerate(mock_data):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            tree.insert("", "end", values=item, tags=(row_tag,))
+            
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
 
 if __name__ == "__main__":

@@ -228,6 +228,9 @@ class DashboardWindow(customtkinter.CTk):
         elif self.active_tab_name == "Tồn kho":
             inventory_view = InventoryView(self.content_area, font_family=self.FONT_FAMILY)
             inventory_view.pack(expand=True, fill="both")
+        elif self.active_tab_name == "Nhập Kho":
+            import_view = ImportView(self.content_area, font_family=self.FONT_FAMILY)
+            import_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,
@@ -878,6 +881,570 @@ class InventoryView(customtkinter.CTkScrollableFrame):
         
         tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+
+
+class ImportView(customtkinter.CTkScrollableFrame):
+    """Màn hình Nhập Kho hiển thị các phiếu nhập hàng và mở popup thêm phiếu nhập mới."""
+    
+    def __init__(self, parent, font_family="Segoe UI"):
+        super().__init__(parent, fg_color="transparent", corner_radius=0)
+        self.FONT_FAMILY = font_family
+        
+        # Cấu hình grid cho self (đối tượng cuộn)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0) # Dòng 1: Cards
+        self.grid_rowconfigure(1, weight=1) # Dòng 2: Table Section
+        
+        # Dựng giao diện
+        self.create_summary_cards()
+        self.create_table_section()
+        
+    def create_summary_cards(self):
+        """Tạo 4 thẻ tổng quan nằm ngang của màn hình Nhập Kho."""
+        cards_container = customtkinter.CTkFrame(
+            self,
+            fg_color="transparent"
+        )
+        cards_container.grid(row=0, column=0, sticky="ew", pady=(0, 20))
+        
+        # Chia đều 4 cột
+        for i in range(4):
+            cards_container.grid_columnconfigure(i, weight=1, uniform="imp_card_cols")
+
+        # Cấu hình 4 card
+        # (Icon, Title, Value, Bg_color_for_icon, Text_color_for_value)
+        card_data = [
+            ("📝", "Tổng phiếu nhập", "26", "#e6f4ea", "#2ecc71"), # Xanh lá
+            ("🏢", "Tổng nhà cung cấp", "12", "#e8f0fe", "#3498db"), # Xanh dương
+            ("💰", "Tổng giá trị nhập hàng", "15.200.000", "#fef9c3", "#d4ac0d"), # Vàng rêu
+            ("📦", "Tổng số lượng nhập hàng", "1.234", "#fee2e2", "#e74c3c") # Đỏ
+        ]
+
+        for i, (icon, title, val, icon_bg, val_color) in enumerate(card_data):
+            card = customtkinter.CTkFrame(
+                cards_container,
+                fg_color="#ffffff",
+                corner_radius=8,
+                border_width=1,
+                border_color="#e2e8f0"
+            )
+            card.grid(row=0, column=i, sticky="nsew", padx=6 if i > 0 and i < 3 else (0, 6) if i == 0 else (6, 0))
+            
+            card.grid_columnconfigure(0, weight=0)
+            card.grid_columnconfigure(1, weight=1)
+            
+            # Icon badge tròn
+            icon_badge = customtkinter.CTkLabel(
+                card,
+                text=icon,
+                font=(self.FONT_FAMILY, 18),
+                fg_color=icon_bg,
+                width=40,
+                height=40,
+                corner_radius=20
+            )
+            icon_badge.grid(row=0, column=0, rowspan=2, padx=12, pady=15, sticky="w")
+            
+            # Tiêu đề thẻ
+            title_lbl = customtkinter.CTkLabel(
+                card,
+                text=title,
+                font=(self.FONT_FAMILY, 11),
+                text_color="#64748b",
+                anchor="w"
+            )
+            title_lbl.grid(row=0, column=1, padx=(0, 12), pady=(12, 2), sticky="w")
+            
+            # Số liệu
+            val_lbl = customtkinter.CTkLabel(
+                card,
+                text=val,
+                font=(self.FONT_FAMILY, 16, "bold"),
+                text_color=val_color,
+                anchor="w"
+            )
+            val_lbl.grid(row=1, column=1, padx=(0, 12), pady=(0, 12), sticky="w")
+
+    def create_table_section(self):
+        """Tạo khu vực chứa bảng nhập kho (tìm kiếm và bảng Treeview)."""
+        table_container = customtkinter.CTkFrame(
+            self,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        table_container.grid(row=1, column=0, sticky="nsew", pady=(0, 15))
+        
+        # ── 1. Thanh công cụ (Toolbar) ──
+        toolbar = customtkinter.CTkFrame(
+            table_container,
+            fg_color="transparent"
+        )
+        toolbar.pack(fill="x", padx=15, pady=15)
+        
+        # Ô tìm kiếm bên trái
+        search_entry = customtkinter.CTkEntry(
+            toolbar,
+            placeholder_text="Tìm mã hoặc tên nguyên liệu 🔍",
+            font=(self.FONT_FAMILY, 12),
+            width=250,
+            height=34,
+            corner_radius=6,
+            fg_color="#f8fafc",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            placeholder_text_color="#94a3b8"
+        )
+        search_entry.pack(side="left")
+        
+        # Khung chứa 4 nút bên phải
+        buttons_frame = customtkinter.CTkFrame(toolbar, fg_color="transparent")
+        buttons_frame.pack(side="right")
+        
+        # Nút 1: Tự động cộng tồn kho (vàng nhạt)
+        auto_stock_btn = customtkinter.CTkButton(
+            buttons_frame,
+            text="Tự động cộng tồn kho",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#fef9c3", # yellow-100
+            hover_color="#fef08a", # yellow-200
+            text_color="#a16207", # yellow-800
+            corner_radius=6,
+            height=34,
+            width=140
+        )
+        auto_stock_btn.pack(side="left", padx=4)
+        
+        # Nút 2: Cập nhật (màu tím)
+        update_btn = customtkinter.CTkButton(
+            buttons_frame,
+            text="Cập nhật",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#f3e8ff", # purple-100
+            hover_color="#e9d5ff", # purple-200
+            text_color="#7e22ce", # purple-700
+            corner_radius=6,
+            height=34,
+            width=80
+        )
+        update_btn.pack(side="left", padx=4)
+        
+        # Nút 3: Xóa phiếu nhập (đỏ nhạt)
+        delete_btn = customtkinter.CTkButton(
+            buttons_frame,
+            text="Xóa phiếu nhập",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#fee2e2", # red-100
+            hover_color="#fca5a5", # red-200
+            text_color="#b91c1c", # red-700
+            corner_radius=6,
+            height=34,
+            width=110
+        )
+        delete_btn.pack(side="left", padx=4)
+        
+        # Nút 4: + Thêm phiếu nhập (xanh dương)
+        add_btn = customtkinter.CTkButton(
+            buttons_frame,
+            text="+ Thêm phiếu nhập",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#3b82f6", # blue-500
+            hover_color="#2563eb", # blue-600
+            text_color="#ffffff",
+            corner_radius=6,
+            height=34,
+            command=self.open_import_form
+        )
+        add_btn.pack(side="left", padx=(4, 0))
+        
+        # ── 2. Bảng dữ liệu (ttk.Treeview) ──
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Cấu hình style cho Treeview
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure(
+            "Import.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=32,
+            font=(self.FONT_FAMILY, 11),
+            borderwidth=0
+        )
+        
+        style.map(
+            "Import.Treeview",
+            background=[("selected", "#e0f2fe")],
+            foreground=[("selected", "#0369a1")]
+        )
+        
+        style.configure(
+            "Import.Treeview.Heading",
+            background="#f8fafc",
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        table_frame = customtkinter.CTkFrame(table_container, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        columns = ("ma_lo", "nha_cc", "nguyen_lieu", "sl_nhap", "gia_nhap", "nsx", "hsd", "trang_thai")
+        
+        tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Import.Treeview"
+        )
+        
+        # Zebra Row tags
+        tree.tag_configure("evenrow", background="#ffffff")
+        tree.tag_configure("oddrow", background="#f8fafc")
+        
+        # Tiêu đề cột
+        headers = {
+            "ma_lo": "Mã lô hàng",
+            "nha_cc": "Nhà cung cấp",
+            "nguyen_lieu": "Nguyên liệu",
+            "sl_nhap": "Số lượng nhập",
+            "gia_nhap": "Giá nhập",
+            "nsx": "Ngày sản xuất",
+            "hsd": "Hạn sử dụng",
+            "trang_thai": "Trạng thái"
+        }
+        
+        for col, heading in headers.items():
+            tree.heading(col, text=heading, anchor="w")
+            if col in ["sl_nhap", "gia_nhap"]:
+                tree.column(col, anchor="e", width=100)
+            elif col in ["nsx", "hsd", "trang_thai"]:
+                tree.column(col, anchor="center", width=110)
+            elif col == "ma_lo":
+                tree.column(col, anchor="w", width=100)
+            elif col == "nha_cc":
+                tree.column(col, anchor="w", width=180)
+            else:
+                tree.column(col, anchor="w", width=120)
+                
+        # Mock data 3 dòng
+        mock_data = [
+            ("PN20601", "Công ty TNHH thực phẩm", "Thịt", "20kg", "200.000/kg", "1/5/2026", "15/5/2026", "Đã nhập"),
+            ("PN20602", "Công ty CP Nông sản sạch", "Rau xà lách", "50kg", "30.000/kg", "10/5/2026", "17/5/2026", "Đã nhập"),
+            ("PN20603", "Nhà phân phối Bánh mì Hà Nội", "Bánh mì", "100 cái", "5.000/cái", "15/5/2026", "18/5/2026", "Chưa nhập")
+        ]
+        
+        for i, item in enumerate(mock_data):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            tree.insert("", "end", values=item, tags=(row_tag,))
+            
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar.set)
+        
+        tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def open_import_form(self):
+        """Mở popup thêm phiếu nhập hàng mới (CTkToplevel)."""
+        popup = customtkinter.CTkToplevel(self)
+        popup.title("Thêm Phiếu Nhập")
+        
+        # Kích thước popup 800x600
+        popup_width = 800
+        popup_height = 600
+        
+        # Căn giữa popup so với cửa sổ cha hoặc màn hình
+        screen_w = popup.winfo_screenwidth()
+        screen_h = popup.winfo_screenheight()
+        try:
+            parent_w = self.winfo_toplevel().winfo_width()
+            parent_h = self.winfo_toplevel().winfo_height()
+            parent_x = self.winfo_toplevel().winfo_x()
+            parent_y = self.winfo_toplevel().winfo_y()
+            x = parent_x + (parent_w - popup_width) // 2
+            y = parent_y + (parent_h - popup_height) // 2
+        except:
+            x = (screen_w - popup_width) // 2
+            y = (screen_h - popup_height) // 2
+            
+        popup.geometry(f"{popup_width}x{popup_height}+{x}+{y}")
+        popup.resizable(False, False)
+        
+        # Khóa tương tác cửa sổ chính
+        popup.grab_set()
+        
+        # Bố cục lưới chính của popup
+        popup.grid_columnconfigure(0, weight=1)
+        popup.grid_rowconfigure(0, weight=0) # Header
+        popup.grid_rowconfigure(1, weight=1) # Main Scrollable content
+        popup.grid_rowconfigure(2, weight=0) # Footer
+        
+        # ── 1. Header (Nền xanh nhạt, chữ đậm) ──
+        header_frame = customtkinter.CTkFrame(
+            popup,
+            fg_color="#e0f2fe", # sky-100
+            height=50,
+            corner_radius=0
+        )
+        header_frame.grid(row=0, column=0, sticky="ew")
+        header_frame.grid_propagate(False)
+        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_rowconfigure(0, weight=1)
+        
+        header_title = customtkinter.CTkLabel(
+            header_frame,
+            text="Phiếu Nhập Kho",
+            font=(self.FONT_FAMILY, 18, "bold"),
+            text_color="#0369a1", # sky-700
+            anchor="w"
+        )
+        header_title.grid(row=0, column=0, padx=20, sticky="w")
+        
+        # ── 2. Nội dung chính cuộn được ──
+        scroll_content = customtkinter.CTkScrollableFrame(
+            popup,
+            fg_color="#f8fafc", # xám cực nhạt làm nền
+            corner_radius=0
+        )
+        scroll_content.grid(row=1, column=0, sticky="nsew")
+        scroll_content.grid_columnconfigure(0, weight=1)
+        
+        # Section 1: Thông tin phiếu nhập
+        section1_card = customtkinter.CTkFrame(
+            scroll_content,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        section1_card.pack(fill="x", padx=15, pady=(15, 10))
+        section1_card.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        sec1_title = customtkinter.CTkLabel(
+            section1_card,
+            text="Thông tin phiếu nhập",
+            font=(self.FONT_FAMILY, 14, "bold"),
+            text_color="#3b82f6", # Màu xanh dương
+            anchor="w"
+        )
+        sec1_title.grid(row=0, column=0, columnspan=3, padx=15, pady=(15, 10), sticky="w")
+        
+        # Cột 1: Mã phiếu nhập *
+        col1_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        col1_frame.grid(row=1, column=0, padx=15, pady=5, sticky="ew")
+        lbl_ma = customtkinter.CTkLabel(col1_frame, text="Mã phiếu nhập *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_ma.pack(anchor="w", pady=(0, 2))
+        entry_ma = customtkinter.CTkEntry(col1_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
+        entry_ma.insert(0, "PN20604")
+        entry_ma.pack(fill="x")
+        
+        # Cột 2: Ngày nhập hàng *
+        col2_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        col2_frame.grid(row=1, column=1, padx=15, pady=5, sticky="ew")
+        lbl_ngay = customtkinter.CTkLabel(col2_frame, text="Ngày nhập hàng *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_ngay.pack(anchor="w", pady=(0, 2))
+        entry_ngay = customtkinter.CTkEntry(col2_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
+        entry_ngay.insert(0, "16/06/2026")
+        entry_ngay.pack(fill="x")
+        
+        # Cột 3: Nhà cung cấp *
+        col3_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        col3_frame.grid(row=1, column=2, padx=15, pady=5, sticky="ew")
+        lbl_ncc = customtkinter.CTkLabel(col3_frame, text="Nhà cung cấp *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_ncc.pack(anchor="w", pady=(0, 2))
+        entry_ncc = customtkinter.CTkEntry(col3_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
+        entry_ncc.insert(0, "Công ty TNHH thực phẩm")
+        entry_ncc.pack(fill="x")
+        
+        # Dòng 2: Ghi chú (CTkTextbox nhỏ)
+        note_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        note_frame.grid(row=2, column=0, columnspan=3, padx=15, pady=(10, 15), sticky="ew")
+        lbl_note = customtkinter.CTkLabel(note_frame, text="Ghi chú", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_note.pack(anchor="w", pady=(0, 2))
+        textbox_note = customtkinter.CTkTextbox(note_frame, height=60, corner_radius=6, border_width=1, border_color="#cbd5e1", fg_color="#f8fafc")
+        textbox_note.pack(fill="x")
+        
+        # Section 2: Chi tiết nguyên liệu
+        section2_card = customtkinter.CTkFrame(
+            scroll_content,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        section2_card.pack(fill="both", expand=True, padx=15, pady=(10, 15))
+        
+        sec2_header = customtkinter.CTkFrame(section2_card, fg_color="transparent")
+        sec2_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        sec2_title = customtkinter.CTkLabel(
+            sec2_header,
+            text="Chi tiết nguyên liệu",
+            font=(self.FONT_FAMILY, 14, "bold"),
+            text_color="#3b82f6",
+            anchor="w"
+        )
+        sec2_title.pack(side="left")
+        
+        add_row_btn = customtkinter.CTkButton(
+            sec2_header,
+            text="+ Thêm nguyên liệu",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#10b981", # Xanh lá
+            hover_color="#059669",
+            text_color="#ffffff",
+            corner_radius=6,
+            height=28
+        )
+        add_row_btn.pack(side="right")
+        
+        # Lưới nhập liệu (Grid Frame giả lập bảng)
+        grid_frame = customtkinter.CTkFrame(
+            section2_card,
+            fg_color="#f8fafc",
+            corner_radius=6,
+            border_width=1,
+            border_color="#cbd5e1"
+        )
+        grid_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        grid_frame.grid_columnconfigure(0, weight=5)   # Stt
+        grid_frame.grid_columnconfigure(1, weight=30)  # Nguyên liệu
+        grid_frame.grid_columnconfigure(2, weight=15)  # Đơn vị
+        grid_frame.grid_columnconfigure(3, weight=15)  # Số lượng
+        grid_frame.grid_columnconfigure(4, weight=15)  # Giá nhập
+        grid_frame.grid_columnconfigure(5, weight=15)  # Tổng tiền
+        grid_frame.grid_columnconfigure(6, weight=20)  # Hạn sử dụng
+        grid_frame.grid_columnconfigure(7, weight=5)   # Xóa
+        
+        # Dòng tiêu đề bảng chi tiết nguyên liệu
+        headers_sec2 = ["Stt", "Nguyên liệu", "Đơn vị", "Số lượng", "Giá nhập", "Tổng tiền", "Hạn sử dụng", ""]
+        for col_idx, h_text in enumerate(headers_sec2):
+            lbl = customtkinter.CTkLabel(
+                grid_frame,
+                text=h_text,
+                font=(self.FONT_FAMILY, 11, "bold"),
+                text_color="#475569",
+                anchor="center" if col_idx in [0, 2, 7] else "e" if col_idx in [3, 4, 5] else "w"
+            )
+            lbl.grid(row=0, column=col_idx, padx=4, pady=8, sticky="ew")
+            
+        # Dòng dữ liệu mẫu
+        lbl_stt = customtkinter.CTkLabel(grid_frame, text="1", font=(self.FONT_FAMILY, 11), text_color="#1e293b")
+        lbl_stt.grid(row=1, column=0, padx=4, pady=5, sticky="center")
+        
+        combo_nl = customtkinter.CTkComboBox(
+            grid_frame,
+            values=["Thịt bò", "Thịt heo", "Rau xà lách", "Bánh mì", "Bột mì"],
+            font=(self.FONT_FAMILY, 11),
+            dropdown_font=(self.FONT_FAMILY, 11),
+            height=28,
+            corner_radius=4,
+            border_color="#cbd5e1"
+        )
+        combo_nl.set("Thịt bò")
+        combo_nl.grid(row=1, column=1, padx=4, pady=5, sticky="ew")
+        
+        combo_dv = customtkinter.CTkComboBox(
+            grid_frame,
+            values=["kg", "g", "cái", "lít"],
+            font=(self.FONT_FAMILY, 11),
+            dropdown_font=(self.FONT_FAMILY, 11),
+            height=28,
+            corner_radius=4,
+            border_color="#cbd5e1"
+        )
+        combo_dv.set("kg")
+        combo_dv.grid(row=1, column=2, padx=4, pady=5, sticky="ew")
+        
+        entry_sl = customtkinter.CTkEntry(grid_frame, height=28, corner_radius=4, border_color="#cbd5e1", font=(self.FONT_FAMILY, 11), justify="right")
+        entry_sl.insert(0, "20")
+        entry_sl.grid(row=1, column=3, padx=4, pady=5, sticky="ew")
+        
+        entry_gn = customtkinter.CTkEntry(grid_frame, height=28, corner_radius=4, border_color="#cbd5e1", font=(self.FONT_FAMILY, 11), justify="right")
+        entry_gn.insert(0, "200.000")
+        entry_gn.grid(row=1, column=4, padx=4, pady=5, sticky="ew")
+        
+        lbl_tt = customtkinter.CTkLabel(grid_frame, text="4.000.000", font=(self.FONT_FAMILY, 11, "bold"), text_color="#1e293b", anchor="e")
+        lbl_tt.grid(row=1, column=5, padx=4, pady=5, sticky="ew")
+        
+        entry_hsd = customtkinter.CTkEntry(grid_frame, height=28, corner_radius=4, border_color="#cbd5e1", font=(self.FONT_FAMILY, 11))
+        entry_hsd.insert(0, "15/5/2026")
+        entry_hsd.grid(row=1, column=6, padx=4, pady=5, sticky="ew")
+        
+        del_btn = customtkinter.CTkButton(
+            grid_frame,
+            text="🗑️",
+            font=(self.FONT_FAMILY, 11),
+            fg_color="#fee2e2",
+            hover_color="#fca5a5",
+            text_color="#ef4444",
+            corner_radius=4,
+            height=28,
+            width=28
+        )
+        del_btn.grid(row=1, column=7, padx=4, pady=5, sticky="center")
+        
+        # ── 3. Footer (Tổng tiền bên trái, 2 nút bên phải) ──
+        footer_frame = customtkinter.CTkFrame(
+            popup,
+            fg_color="#ffffff",
+            height=60,
+            corner_radius=0,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        footer_frame.grid(row=2, column=0, sticky="ew")
+        footer_frame.grid_propagate(False)
+        footer_frame.grid_columnconfigure(0, weight=1)
+        footer_frame.grid_columnconfigure(1, weight=0)
+        footer_frame.grid_rowconfigure(0, weight=1)
+        
+        total_label = customtkinter.CTkLabel(
+            footer_frame,
+            text="Tổng tiền: 4.000.000",
+            font=(self.FONT_FAMILY, 16, "bold"),
+            text_color="#3b82f6",
+            anchor="w"
+        )
+        total_label.grid(row=0, column=0, padx=20, sticky="w")
+        
+        footer_buttons = customtkinter.CTkFrame(footer_frame, fg_color="transparent")
+        footer_buttons.grid(row=0, column=1, padx=20, sticky="e")
+        
+        cancel_btn = customtkinter.CTkButton(
+            footer_buttons,
+            text="Hủy",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#ffffff",
+            border_width=1,
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            hover_color="#f1f5f9",
+            corner_radius=6,
+            height=36,
+            width=80,
+            command=popup.destroy
+        )
+        cancel_btn.pack(side="left", padx=5)
+        
+        save_btn = customtkinter.CTkButton(
+            footer_buttons,
+            text="Lưu phiếu nhập",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            text_color="#ffffff",
+            corner_radius=6,
+            height=36,
+            command=popup.destroy
+        )
+        save_btn.pack(side="left", padx=5)
 
 
 if __name__ == "__main__":

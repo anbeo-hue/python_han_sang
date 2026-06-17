@@ -2711,7 +2711,7 @@ class OrderView(customtkinter.CTkFrame):
         # ── 1. Header (Xanh dương, chữ trắng) ──
         header_frame = customtkinter.CTkFrame(
             popup,
-            fg_color="#1e3a8a",
+            fg_color="#6b9bd2",
             height=50,
             corner_radius=0
         )
@@ -2835,6 +2835,7 @@ class OrderView(customtkinter.CTkFrame):
             lbl.grid(row=0, column=col_idx, padx=4, pady=8, sticky="ew")
             
         rows = []
+        total_label = None
         
         def recalculate_total():
             grand_total = 0
@@ -2849,7 +2850,8 @@ class OrderView(customtkinter.CTkFrame):
                     grand_total += row_total
                 except Exception:
                     pass
-            total_label.configure(text=f"Tổng tiền: {grand_total:,}đ".replace(",", "."))
+            if total_label is not None:
+                total_label.configure(text=f"Tổng tiền: {grand_total:,}đ".replace(",", "."))
             
         def add_row():
             row_idx = len(rows) + 1
@@ -3016,12 +3018,81 @@ class RecipeView(customtkinter.CTkFrame):
         super().__init__(parent, fg_color="#f5f6f8", corner_radius=0)
         self.FONT_FAMILY = font_family
         
+        # 1. Dữ liệu giả lập (Mock data) chất lượng cao
+        self.recipes_data = {
+            "CT001": {
+                "ma_ct": "CT001",
+                "ten_mon": "hamburger",
+                "so_nl": 3,
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": "20/05/2026 - 10:00 AM",
+                "nguyen_lieu": [
+                    {"ten": "Thịt bò", "so_luong": 0.2, "don_vi": "kg"},
+                    {"ten": "Bánh mì", "so_luong": 2.0, "don_vi": "cái"},
+                    {"ten": "Rau xà lách", "so_luong": 0.1, "don_vi": "kg"}
+                ],
+                "ghi_chu": "Ghi chú: Nguyên liệu tươi sống cần bảo quản lạnh."
+            },
+            "CT002": {
+                "ma_ct": "CT002",
+                "ten_mon": "Hamburger gà",
+                "so_nl": 3,
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": "21/05/2026 - 02:30 PM",
+                "nguyen_lieu": [
+                    {"ten": "Thịt gà phi lê", "so_luong": 0.15, "don_vi": "kg"},
+                    {"ten": "Bánh mì", "so_luong": 2.0, "don_vi": "cái"},
+                    {"ten": "Cà chua", "so_luong": 0.1, "don_vi": "kg"}
+                ],
+                "ghi_chu": "Ghi chú: Sơ chế gà kỹ trước khi chiên/nướng."
+            },
+            "CT003": {
+                "ma_ct": "CT003",
+                "ten_mon": "Pizza hải sản",
+                "so_nl": 4,
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": "22/05/2026 - 11:15 AM",
+                "nguyen_lieu": [
+                    {"ten": "Tôm tươi", "so_luong": 0.15, "don_vi": "kg"},
+                    {"ten": "Mực ống", "so_luong": 0.1, "don_vi": "kg"},
+                    {"ten": "Phô mai Mozzarella", "so_luong": 0.08, "don_vi": "kg"},
+                    {"ten": "Đế bánh pizza", "so_luong": 1.0, "don_vi": "cái"}
+                ],
+                "ghi_chu": "Ghi chú: Nướng ở nhiệt độ 220°C trong 15 phút."
+            },
+            "CT004": {
+                "ma_ct": "CT004",
+                "ten_mon": "Khoai tây chiên",
+                "so_nl": 1,
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": "23/05/2026 - 04:00 PM",
+                "nguyen_lieu": [
+                    {"ten": "Khoai tây tươi", "so_luong": 0.3, "don_vi": "kg"}
+                ],
+                "ghi_chu": "Ghi chú: Chiên ngập dầu ở nhiệt độ 180°C."
+            },
+            "CT005": {
+                "ma_ct": "CT005",
+                "ten_mon": "Mỳ Ý sốt bò bằm",
+                "so_nl": 4,
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": "24/05/2026 - 09:30 AM",
+                "nguyen_lieu": [
+                    {"ten": "Mỳ sợi khô", "so_luong": 0.08, "don_vi": "kg"},
+                    {"ten": "Thịt bò băm", "so_luong": 0.1, "don_vi": "kg"},
+                    {"ten": "Sốt cà chua", "so_luong": 0.05, "don_vi": "kg"},
+                    {"ten": "Hành tây", "so_luong": 0.02, "don_vi": "kg"}
+                ],
+                "ghi_chu": "Ghi chú: Luộc mỳ trong 8-10 phút với một chút muối."
+            }
+        }
+        
         # Cấu hình grid chính cho RecipeView
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=0) # Tiêu đề trang
         self.grid_rowconfigure(1, weight=0) # Đường kẻ phân cách
         self.grid_rowconfigure(2, weight=0) # Thẻ tổng quan
-        self.grid_rowconfigure(3, weight=1) # Vùng chứa bảng
+        self.grid_rowconfigure(3, weight=1) # Vùng nội dung chính (Split Screen)
         
         self.setup_ui()
         
@@ -3046,65 +3117,123 @@ class RecipeView(customtkinter.CTkFrame):
         )
         self.divider.grid(row=1, column=0, sticky="ew", pady=(0, 15))
         
-        # 2. Thẻ Tổng Quan (Overview Cards)
+        # 2. Thẻ Tổng Quan (Overview Cards) nằm ngang
         cards_frame = customtkinter.CTkFrame(self, fg_color="transparent")
         cards_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
-        cards_frame.grid_columnconfigure((0, 1), weight=1)
+        cards_frame.grid_columnconfigure((0, 1), weight=1, uniform="card_cols")
         
-        cards_data = [
-            ("Tổng món ăn", "180", "#10b981"),       # xanh lá
-            ("Tổng nguyên liệu", "12.000.000", "#3b82f6") # xanh dương
-        ]
-        
-        for i, (title, value, color) in enumerate(cards_data):
-            card = customtkinter.CTkFrame(
-                cards_frame,
-                fg_color="#ffffff",
-                corner_radius=10,
-                border_width=1,
-                border_color="#e2e8f0",
-                height=90
-            )
-            card.grid(row=0, column=i, padx=(0 if i==0 else 15, 0), sticky="ew")
-            card.grid_propagate(False)
-            
-            lbl_title = customtkinter.CTkLabel(
-                card, 
-                text=title, 
-                font=(self.FONT_FAMILY, 12, "bold"), 
-                text_color="#64748b",
-                anchor="w"
-            )
-            lbl_title.pack(anchor="w", padx=15, pady=(15, 2))
-            
-            lbl_val = customtkinter.CTkLabel(
-                card, 
-                text=value, 
-                font=(self.FONT_FAMILY, 24, "bold"), 
-                text_color=color,
-                anchor="w"
-            )
-            lbl_val.pack(anchor="w", padx=15, pady=(0, 15))
-
-        # 3. Vùng chứa bảng (nền trắng)
-        self.table_container = customtkinter.CTkFrame(
-            self,
+        # Thẻ 1: Tổng món ăn | 180 (Icon xanh lá, Số xanh lá)
+        card1 = customtkinter.CTkFrame(
+            cards_frame,
             fg_color="#ffffff",
-            corner_radius=8,
+            corner_radius=10,
+            border_width=1,
+            border_color="#e2e8f0",
+            height=90
+        )
+        card1.grid(row=0, column=0, padx=(0, 10), sticky="ew")
+        card1.grid_propagate(False)
+        card1.grid_columnconfigure(0, weight=0)
+        card1.grid_columnconfigure(1, weight=1)
+        
+        icon1_badge = customtkinter.CTkLabel(
+            card1,
+            text="🍔",
+            font=(self.FONT_FAMILY, 18),
+            fg_color="#e6f4ea", # xanh lá nhạt
+            width=40,
+            height=40,
+            corner_radius=20
+        )
+        icon1_badge.grid(row=0, column=0, rowspan=2, padx=15, pady=25, sticky="w")
+        
+        lbl_title1 = customtkinter.CTkLabel(
+            card1,
+            text="Tổng món ăn",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            text_color="#64748b",
+            anchor="w"
+        )
+        lbl_title1.grid(row=0, column=1, padx=(0, 15), pady=(15, 2), sticky="w")
+        
+        lbl_val1 = customtkinter.CTkLabel(
+            card1,
+            text="180",
+            font=(self.FONT_FAMILY, 24, "bold"),
+            text_color="#10b981", # xanh lá
+            anchor="w"
+        )
+        lbl_val1.grid(row=1, column=1, padx=(0, 15), pady=(0, 15), sticky="w")
+        
+        # Thẻ 2: Tổng nguyên liệu | 12.000.000 (Icon xanh dương, Số xanh dương)
+        card2 = customtkinter.CTkFrame(
+            cards_frame,
+            fg_color="#ffffff",
+            corner_radius=10,
+            border_width=1,
+            border_color="#e2e8f0",
+            height=90
+        )
+        card2.grid(row=0, column=1, padx=(10, 0), sticky="ew")
+        card2.grid_propagate(False)
+        card2.grid_columnconfigure(0, weight=0)
+        card2.grid_columnconfigure(1, weight=1)
+        
+        icon2_badge = customtkinter.CTkLabel(
+            card2,
+            text="📦",
+            font=(self.FONT_FAMILY, 18),
+            fg_color="#e8f0fe", # xanh dương nhạt
+            width=40,
+            height=40,
+            corner_radius=20
+        )
+        icon2_badge.grid(row=0, column=0, rowspan=2, padx=15, pady=25, sticky="w")
+        
+        lbl_title2 = customtkinter.CTkLabel(
+            card2,
+            text="Tổng nguyên liệu",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            text_color="#64748b",
+            anchor="w"
+        )
+        lbl_title2.grid(row=0, column=1, padx=(0, 15), pady=(15, 2), sticky="w")
+        
+        lbl_val2 = customtkinter.CTkLabel(
+            card2,
+            text="12.000.000",
+            font=(self.FONT_FAMILY, 24, "bold"),
+            text_color="#3b82f6", # xanh dương
+            anchor="w"
+        )
+        lbl_val2.grid(row=1, column=1, padx=(0, 15), pady=(0, 15), sticky="w")
+
+        # 3. Khu vực Nội dung chính (Split Screen Layout)
+        split_frame = customtkinter.CTkFrame(self, fg_color="transparent")
+        split_frame.grid(row=3, column=0, sticky="nsew", pady=(0, 15))
+        split_frame.grid_columnconfigure(0, weight=67) # left_frame chiếm 67%
+        split_frame.grid_columnconfigure(1, weight=33) # right_detail_frame chiếm 33%
+        split_frame.grid_rowconfigure(0, weight=1)
+        
+        # ── [BÊN TRÁI - DANH SÁCH CÔNG THỨC] ──
+        self.left_frame = customtkinter.CTkFrame(
+            split_frame,
+            fg_color="#ffffff",
+            corner_radius=10,
             border_width=1,
             border_color="#e2e8f0"
         )
-        self.table_container.grid(row=3, column=0, sticky="nsew", pady=(0, 15))
+        self.left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
-        # Toolbar
-        toolbar = customtkinter.CTkFrame(self.table_container, fg_color="transparent")
+        # Toolbar bên trái
+        toolbar = customtkinter.CTkFrame(self.left_frame, fg_color="transparent")
         toolbar.pack(fill="x", padx=15, pady=15)
         
-        search_entry = customtkinter.CTkEntry(
+        self.search_entry = customtkinter.CTkEntry(
             toolbar,
-            placeholder_text="Tìm kiếm công thức... 🔍",
+            placeholder_text="Tìm mã hoặc tên món ăn... 🔍",
             font=(self.FONT_FAMILY, 12),
-            width=250,
+            width=300,
             height=34,
             corner_radius=6,
             fg_color="#f8fafc",
@@ -3112,22 +3241,23 @@ class RecipeView(customtkinter.CTkFrame):
             text_color="#0f172a",
             placeholder_text_color="#94a3b8"
         )
-        search_entry.pack(side="left")
+        self.search_entry.pack(side="left")
+        self.search_entry.bind("<KeyRelease>", self.filter_recipes)
         
         add_btn = customtkinter.CTkButton(
             toolbar,
             text="+ Thêm công thức",
             font=(self.FONT_FAMILY, 12, "bold"),
-            fg_color="#e0f2fe", # sky-100
-            hover_color="#bae6fd", # sky-200
-            text_color="#0369a1", # sky-700
+            fg_color="#3b82f6", # màu xanh dương
+            hover_color="#2563eb",
+            text_color="#ffffff",
             corner_radius=6,
             height=34,
             command=self.open_add_recipe_form
         )
         add_btn.pack(side="right")
         
-        # Bảng Treeview
+        # Bảng dữ liệu (ttk.Treeview) bên trái
         import tkinter as tk
         from tkinter import ttk
         
@@ -3152,17 +3282,17 @@ class RecipeView(customtkinter.CTkFrame):
         
         style.configure(
             "Recipe.Treeview.Heading",
-            background="#E5E7EB",
+            background="#f8fafc",
             foreground="#475569",
             font=(self.FONT_FAMILY, 11, "bold"),
             borderwidth=1,
             relief="flat"
         )
         
-        table_frame = customtkinter.CTkFrame(self.table_container, fg_color="transparent")
+        table_frame = customtkinter.CTkFrame(self.left_frame, fg_color="transparent")
         table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
-        columns = ("ma_ct", "ten_mon", "so_nl", "trang_thai")
+        columns = ("ma_ct", "ten_mon", "so_nl", "trang_thai", "thao_tac")
         
         self.tree = ttk.Treeview(
             table_frame,
@@ -3178,42 +3308,222 @@ class RecipeView(customtkinter.CTkFrame):
             "ma_ct": "Mã công thức",
             "ten_mon": "Tên món ăn",
             "so_nl": "Số nguyên liệu",
-            "trang_thai": "Trạng thái"
+            "trang_thai": "Trạng thái",
+            "thao_tac": "Thao tác"
         }
         
         for col, heading in headers.items():
             self.tree.heading(col, text=heading, anchor="w")
             if col == "ma_ct":
-                self.tree.column(col, anchor="center", width=120)
+                self.tree.column(col, anchor="w", width=100)
             elif col == "so_nl":
-                self.tree.column(col, anchor="center", width=150)
+                self.tree.column(col, anchor="center", width=120)
             elif col == "trang_thai":
-                self.tree.column(col, anchor="center", width=150)
+                self.tree.column(col, anchor="center", width=120)
+            elif col == "thao_tac":
+                self.tree.column(col, anchor="center", width=120)
             else:
-                self.tree.column(col, anchor="w", width=250)
+                self.tree.column(col, anchor="w", width=200)
                 
-        mock_data = [
-            ("CT001", "Hamburger bò", "3", "Đang sử dụng"),
-            ("CT002", "Hamburger gà", "3", "Đang sử dụng"),
-            ("CT003", "Pizza hải sản", "4", "Đang sử dụng"),
-            ("CT004", "Khoai tây chiên", "1", "Đang sử dụng"),
-            ("CT005", "Mỳ Ý sốt bò bằm", "4", "Đang sử dụng")
-        ]
-        
-        for i, item in enumerate(mock_data):
-            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
-            self.tree.insert("", "end", values=item, tags=(row_tag,))
-            
         scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
         
         self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+        
+        self.tree.bind("<<TreeviewSelect>>", self.on_recipe_select)
+        
+        # ── [BÊN PHẢI - CHI TIẾT CÔNG THỨC] ──
+        self.right_detail_frame = customtkinter.CTkFrame(
+            split_frame,
+            fg_color="#ffffff",
+            corner_radius=10,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        self.right_detail_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        
+        # Tiêu đề chi tiết + Badge trạng thái
+        header_detail_frame = customtkinter.CTkFrame(self.right_detail_frame, fg_color="transparent")
+        header_detail_frame.pack(fill="x", padx=15, pady=(15, 10))
+        
+        detail_title = customtkinter.CTkLabel(
+            header_detail_frame,
+            text="Lịch sử công thức",
+            font=(self.FONT_FAMILY, 15, "bold"),
+            text_color="#0f172a"
+        )
+        detail_title.pack(side="left")
+        
+        status_badge = customtkinter.CTkFrame(
+            header_detail_frame,
+            fg_color="#e6f4ea", # badge xanh lá
+            corner_radius=6,
+            height=24
+        )
+        status_badge.pack(side="right")
+        status_badge.pack_propagate(False)
+        
+        status_badge_lbl = customtkinter.CTkLabel(
+            status_badge,
+            text="Đang sử dụng",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            text_color="#10b981",
+            fg_color="transparent"
+        )
+        status_badge_lbl.pack(expand=True, fill="both", padx=8)
+        
+        # Thông tin chung: Mã công thức + Thời gian
+        info_frame = customtkinter.CTkFrame(self.right_detail_frame, fg_color="transparent")
+        info_frame.pack(fill="x", padx=15, pady=(0, 12))
+        
+        self.lbl_detail_code = customtkinter.CTkLabel(
+            info_frame,
+            text="Mã công thức: CT001",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            text_color="#475569"
+        )
+        self.lbl_detail_code.pack(anchor="w")
+        
+        self.lbl_detail_time = customtkinter.CTkLabel(
+            info_frame,
+            text="20/05/2026 - 10:00 AM",
+            font=(self.FONT_FAMILY, 11),
+            text_color="#64748b"
+        )
+        self.lbl_detail_time.pack(anchor="w", pady=(2, 0))
+        
+        # Bảng nguyên liệu chi tiết (Treeview nhỏ gọn)
+        ing_table_frame = customtkinter.CTkFrame(self.right_detail_frame, fg_color="transparent")
+        ing_table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+        
+        style.configure(
+            "DetailIng.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=28,
+            font=(self.FONT_FAMILY, 10),
+            borderwidth=0
+        )
+        style.configure(
+            "DetailIng.Treeview.Heading",
+            background="#f8fafc",
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 10, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        self.ing_tree = ttk.Treeview(
+            ing_table_frame,
+            columns=("ten_nl", "so_luong", "don_vi"),
+            show="headings",
+            style="DetailIng.Treeview"
+        )
+        self.ing_tree.tag_configure("evenrow", background="#ffffff")
+        self.ing_tree.tag_configure("oddrow", background="#f8fafc")
+        
+        self.ing_tree.heading("ten_nl", text="Tên nguyên liệu", anchor="w")
+        self.ing_tree.heading("so_luong", text="Số lượng", anchor="e")
+        self.ing_tree.heading("don_vi", text="Đơn vị", anchor="center")
+        
+        self.ing_tree.column("ten_nl", anchor="w", width=120)
+        self.ing_tree.column("so_luong", anchor="e", width=70)
+        self.ing_tree.column("don_vi", anchor="center", width=60)
+        
+        self.ing_tree.pack(side="left", fill="both", expand=True)
+        
+        ing_scrollbar = ttk.Scrollbar(ing_table_frame, orient="vertical", command=self.ing_tree.yview)
+        self.ing_tree.configure(yscrollcommand=ing_scrollbar.set)
+        ing_scrollbar.pack(side="right", fill="y")
+        
+        # Ghi chú nhỏ ở chân khung
+        self.lbl_detail_note = customtkinter.CTkLabel(
+            self.right_detail_frame,
+            text="Ghi chú: Nguyên liệu tươi sống cần bảo quản lạnh.",
+            font=(self.FONT_FAMILY, 11, "italic"),
+            text_color="#64748b",
+            wraplength=260,
+            justify="left",
+            anchor="w"
+        )
+        self.lbl_detail_note.pack(fill="x", padx=15, pady=(5, 15))
+        
+        # Load dữ liệu ban đầu
+        self.filter_recipes()
+        
+    def filter_recipes(self, event=None):
+        """Lọc danh sách công thức theo ô tìm kiếm."""
+        search_term = self.search_entry.get().lower().strip()
+        
+        # Xóa các dòng hiện tại
+        self.tree.delete(*self.tree.get_children())
+        
+        filtered = []
+        for code, data in self.recipes_data.items():
+            if not search_term or (search_term in code.lower() or search_term in data["ten_mon"].lower() or search_term in data["trang_thai"].lower()):
+                filtered.append(data)
+                
+        # Sắp xếp theo mã công thức
+        filtered.sort(key=lambda x: x["ma_ct"])
+        
+        for i, data in enumerate(filtered):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.tree.insert("", "end", values=(
+                data["ma_ct"],
+                data["ten_mon"],
+                str(data["so_nl"]),
+                data["trang_thai"],
+                "🔧 / 🗑️ / 👁️"
+            ), tags=(row_tag,))
+            
+        # Tự động chọn dòng đầu tiên nếu có dữ liệu để hiển thị chi tiết bên phải
+        children = self.tree.get_children()
+        if children:
+            self.tree.selection_set(children[0])
+        else:
+            # Xóa chi tiết nếu không tìm thấy gì
+            self.lbl_detail_code.configure(text="Mã công thức: --")
+            self.lbl_detail_time.configure(text="--/--/---- --:-- --")
+            self.lbl_detail_note.configure(text="Ghi chú: Không có dữ liệu.")
+            self.ing_tree.delete(*self.ing_tree.get_children())
+
+    def on_recipe_select(self, event=None):
+        """Cập nhật chi tiết khi click chọn một dòng trên bảng."""
+        selected_items = self.tree.selection()
+        if not selected_items:
+            return
+            
+        item_id = selected_items[0]
+        values = self.tree.item(item_id, "values")
+        if not values:
+            return
+            
+        ma_ct = values[0]
+        if ma_ct in self.recipes_data:
+            data = self.recipes_data[ma_ct]
+            self.lbl_detail_code.configure(text=f"Mã công thức: {data['ma_ct']}")
+            self.lbl_detail_time.configure(text=data["thoi_gian"])
+            self.lbl_detail_note.configure(text=data["ghi_chu"])
+            
+            # Xóa các nguyên liệu hiện tại
+            self.ing_tree.delete(*self.ing_tree.get_children())
+            
+            # Chèn nguyên liệu mới
+            for i, ing in enumerate(data["nguyen_lieu"]):
+                row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+                qty_formatted = f"{ing['so_luong']:.1f}" if isinstance(ing["so_luong"], float) and not ing["so_luong"].is_integer() else str(int(ing["so_luong"]))
+                self.ing_tree.insert("", "end", values=(
+                    ing["ten"],
+                    qty_formatted,
+                    ing["don_vi"]
+                ), tags=(row_tag,))
 
     def open_add_recipe_form(self):
         """Mở popup thêm công thức món ăn mới (CTkToplevel)."""
         popup = customtkinter.CTkToplevel(self)
-        popup.title("Thêm Công Thức Mới")
+        popup.title("Công thức món ăn")
         
         popup_width = 700
         popup_height = 550
@@ -3240,10 +3550,10 @@ class RecipeView(customtkinter.CTkFrame):
         popup.grid_rowconfigure(1, weight=1) # Main Scrollable content
         popup.grid_rowconfigure(2, weight=0) # Footer
         
-        # ── 1. Header (Xanh dương, chữ trắng) ──
+        # ── 1. Header (Màu xanh dương, chữ trắng) ──
         header_frame = customtkinter.CTkFrame(
             popup,
-            fg_color="#1e3a8a",
+            fg_color="#6b9bd2",
             height=50,
             corner_radius=0
         )
@@ -3270,7 +3580,7 @@ class RecipeView(customtkinter.CTkFrame):
         scroll_content.grid(row=1, column=0, sticky="nsew")
         scroll_content.grid_columnconfigure(0, weight=1)
         
-        # Section 1: Thông tin công thức
+        # Section "Thông tin phiếu"
         section1_card = customtkinter.CTkFrame(
             scroll_content,
             fg_color="#ffffff",
@@ -3283,7 +3593,7 @@ class RecipeView(customtkinter.CTkFrame):
         
         sec1_title = customtkinter.CTkLabel(
             section1_card,
-            text="Thông tin công thức",
+            text="Thông tin phiếu",
             font=(self.FONT_FAMILY, 14, "bold"),
             text_color="#1e3a8a",
             anchor="w"
@@ -3296,7 +3606,10 @@ class RecipeView(customtkinter.CTkFrame):
         lbl_ma = customtkinter.CTkLabel(col1_frame, text="Mã công thức *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
         lbl_ma.pack(anchor="w", pady=(0, 2))
         entry_ma = customtkinter.CTkEntry(col1_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
-        entry_ma.insert(0, "CT006")
+        
+        # Tự động sinh mã công thức dựa trên các mã hiện có
+        next_num = len(self.recipes_data) + 1
+        entry_ma.insert(0, f"CT{next_num:03d}")
         entry_ma.pack(fill="x")
         
         # Cột 2: Tên món ăn *
@@ -3304,11 +3617,10 @@ class RecipeView(customtkinter.CTkFrame):
         col2_frame.grid(row=1, column=1, padx=15, pady=(0, 15), sticky="ew")
         lbl_ten = customtkinter.CTkLabel(col2_frame, text="Tên món ăn *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
         lbl_ten.pack(anchor="w", pady=(0, 2))
-        entry_ten = customtkinter.CTkEntry(col2_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
-        entry_ten.insert(0, "Hamburger")
+        entry_ten = customtkinter.CTkEntry(col2_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc", placeholder_text="Ví dụ: Hamburger cá")
         entry_ten.pack(fill="x")
         
-        # Section 2: Chi tiết công thức
+        # Section "Công thức món ăn" (Chi tiết nguyên liệu)
         section2_card = customtkinter.CTkFrame(
             scroll_content,
             fg_color="#ffffff",
@@ -3323,27 +3635,14 @@ class RecipeView(customtkinter.CTkFrame):
         
         sec2_title = customtkinter.CTkLabel(
             sec2_header,
-            text="Chi tiết công thức",
+            text="Công thức món ăn",
             font=(self.FONT_FAMILY, 14, "bold"),
             text_color="#1e3a8a",
             anchor="w"
         )
         sec2_title.pack(side="left")
         
-        add_row_btn = customtkinter.CTkButton(
-            sec2_header,
-            text="+ Thêm nguyên liệu",
-            font=(self.FONT_FAMILY, 11, "bold"),
-            fg_color="#10b981", # Xanh lá
-            hover_color="#059669",
-            text_color="#ffffff",
-            corner_radius=6,
-            height=28,
-            command=lambda: add_row()
-        )
-        add_row_btn.pack(side="right")
-        
-        # Lưới nhập liệu
+        # Lưới nhập liệu (Grid Frame giả lập bảng)
         grid_frame = customtkinter.CTkFrame(
             section2_card,
             fg_color="#f8fafc",
@@ -3381,7 +3680,7 @@ class RecipeView(customtkinter.CTkFrame):
             
             combo_nl = customtkinter.CTkComboBox(
                 grid_frame,
-                values=["Thịt bò", "Thịt heo", "Rau xà lách", "Bánh mì", "Bột mì", "Cà chua", "Phô mai", "Trứng"],
+                values=["Thịt bò", "Thịt heo", "Thịt gà phi lê", "Tôm tươi", "Mực ống", "Phô mai Mozzarella", "Đế bánh pizza", "Bánh mì tròn", "Bánh mì", "Rau xà lách", "Bột mì", "Cà chua", "Trứng", "Hành tây"],
                 font=(self.FONT_FAMILY, 11),
                 dropdown_font=(self.FONT_FAMILY, 11),
                 height=28,
@@ -3391,7 +3690,7 @@ class RecipeView(customtkinter.CTkFrame):
             combo_nl.set("Thịt bò")
             combo_nl.grid(row=grid_row, column=1, padx=4, pady=5, sticky="ew")
             
-            # Spinner cho Số lượng *
+            # Ô "Số lượng" thiết kế dạng Stepper
             spinner_frame = customtkinter.CTkFrame(grid_frame, fg_color="transparent")
             spinner_frame.grid(row=grid_row, column=2, padx=4, pady=5)
             
@@ -3404,17 +3703,22 @@ class RecipeView(customtkinter.CTkFrame):
                 font=(self.FONT_FAMILY, 11), 
                 justify="center"
             )
-            entry_qty.insert(0, "2")
+            entry_qty.insert(0, "1")
             
             def decrease_qty():
                 try:
                     val = float(entry_qty.get())
-                    if val > 1:
+                    if val > 0.1:
                         entry_qty.delete(0, "end")
-                        if val.is_integer():
-                            entry_qty.insert(0, str(int(val - 1)))
+                        if val <= 1.0:
+                            new_val = round(val - 0.1, 1)
+                            entry_qty.insert(0, f"{new_val:.1f}")
                         else:
-                            entry_qty.insert(0, f"{val - 1:.1f}")
+                            new_val = val - 1.0
+                            if new_val.is_integer():
+                                entry_qty.insert(0, str(int(new_val)))
+                            else:
+                                entry_qty.insert(0, f"{new_val:.1f}")
                 except:
                     pass
                     
@@ -3422,10 +3726,15 @@ class RecipeView(customtkinter.CTkFrame):
                 try:
                     val = float(entry_qty.get())
                     entry_qty.delete(0, "end")
-                    if val.is_integer():
-                        entry_qty.insert(0, str(int(val + 1)))
+                    if val < 1.0:
+                        new_val = round(val + 0.1, 1)
+                        entry_qty.insert(0, f"{new_val:.1f}")
                     else:
-                        entry_qty.insert(0, f"{val + 1:.1f}")
+                        new_val = val + 1.0
+                        if new_val.is_integer():
+                            entry_qty.insert(0, str(int(new_val)))
+                        else:
+                            entry_qty.insert(0, f"{new_val:.1f}")
                 except:
                     pass
                     
@@ -3461,7 +3770,7 @@ class RecipeView(customtkinter.CTkFrame):
             
             combo_dv = customtkinter.CTkComboBox(
                 grid_frame,
-                values=["kg", "g", "cái", "lít", "muỗng"],
+                values=["kg", "g", "cái", "lít", "hộp", "muỗng"],
                 font=(self.FONT_FAMILY, 11),
                 dropdown_font=(self.FONT_FAMILY, 11),
                 height=28,
@@ -3475,12 +3784,18 @@ class RecipeView(customtkinter.CTkFrame):
                 "stt_lbl": lbl_stt,
                 "combo_nl": combo_nl,
                 "spinner_frame": spinner_frame,
+                "entry_qty": entry_qty,
                 "combo_dv": combo_dv,
             }
             
             def delete_row():
+                if len(rows) <= 1:
+                    return
                 rows.remove(row_widgets)
                 for w in row_widgets.values():
+                    if isinstance(w, customtkinter.CTkFrame):
+                        for child in w.winfo_children():
+                            child.destroy()
                     w.destroy()
                 for i, r_w in enumerate(rows):
                     new_idx = i + 1
@@ -3508,7 +3823,22 @@ class RecipeView(customtkinter.CTkFrame):
             
             rows.append(row_widgets)
             
-        # Thêm dòng mặc định đầu tiên
+        add_row_btn = customtkinter.CTkButton(
+            sec2_header,
+            text="+ Thêm nguyên liệu",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#10b981", # Xanh lá
+            hover_color="#059669",
+            text_color="#ffffff",
+            corner_radius=6,
+            height=28,
+            command=add_row
+        )
+        add_row_btn.pack(side="right")
+        
+        # Thêm 3 dòng mặc định ban đầu
+        add_row()
+        add_row()
         add_row()
         
         # ── 3. Footer (Nút Hủy và Lưu công thức) ──
@@ -3544,16 +3874,72 @@ class RecipeView(customtkinter.CTkFrame):
         )
         cancel_btn.pack(side="left", padx=5)
         
+        def save_recipe():
+            ma = entry_ma.get().strip()
+            ten = entry_ten.get().strip()
+            if not ma or not ten:
+                from tkinter import messagebox
+                messagebox.showerror("Lỗi nhập liệu", "Vui lòng nhập đầy đủ Mã công thức và Tên món ăn!")
+                return
+            
+            ingredients = []
+            for r in rows:
+                nl = r["combo_nl"].get().strip()
+                qty_str = r["entry_qty"].get().strip()
+                dv = r["combo_dv"].get().strip()
+                if nl and qty_str:
+                    try:
+                        qty = float(qty_str)
+                    except ValueError:
+                        qty = 1.0
+                    ingredients.append({
+                        "ten": nl,
+                        "so_luong": qty,
+                        "don_vi": dv
+                    })
+                    
+            if not ingredients:
+                from tkinter import messagebox
+                messagebox.showerror("Lỗi nhập liệu", "Vui lòng thêm ít nhất một nguyên liệu hợp lệ!")
+                return
+                
+            import datetime
+            now = datetime.datetime.now()
+            time_str = now.strftime("%d/%m/%Y - %I:%M %p")
+            
+            self.recipes_data[ma] = {
+                "ma_ct": ma,
+                "ten_mon": ten,
+                "so_nl": len(ingredients),
+                "trang_thai": "Đang sử dụng",
+                "thoi_gian": time_str,
+                "nguyen_lieu": ingredients,
+                "ghi_chu": "Ghi chú: Nguyên liệu tươi sống cần bảo quản lạnh."
+            }
+            
+            self.filter_recipes()
+            
+            for item_id in self.tree.get_children():
+                val = self.tree.item(item_id, "values")
+                if val and val[0] == ma:
+                    self.tree.selection_set(item_id)
+                    self.tree.see(item_id)
+                    break
+                    
+            popup.destroy()
+            from tkinter import messagebox
+            messagebox.showinfo("Thành công", f"Đã lưu công thức cho món '{ten}' thành công!")
+            
         save_btn = customtkinter.CTkButton(
             footer_buttons,
             text="Lưu công thức",
             font=(self.FONT_FAMILY, 12, "bold"),
-            fg_color="#3b82f6",
+            fg_color="#3b82f6", # màu xanh dương
             hover_color="#2563eb",
             text_color="#ffffff",
             corner_radius=6,
             height=36,
-            command=popup.destroy
+            command=save_recipe
         )
         save_btn.pack(side="left", padx=5)
 

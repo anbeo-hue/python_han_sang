@@ -224,7 +224,7 @@ class DashboardWindow(customtkinter.CTk):
             widget.destroy()
 
         # Hiển thị hoặc ẩn header & divider dựa trên tab hoạt động
-        if self.active_tab_name in ["Quản lý nhà cung cấp", "Quản lý đơn hàng"]:
+        if self.active_tab_name in ["Quản lý nhà cung cấp", "Quản lý đơn hàng", "Công thức món ăn"]:
             self.header_frame.grid_remove()
             if hasattr(self, 'main_divider'):
                 self.main_divider.grid_remove()
@@ -250,6 +250,9 @@ class DashboardWindow(customtkinter.CTk):
         elif self.active_tab_name == "Quản lý đơn hàng":
             order_view = OrderView(self.content_area, font_family=self.FONT_FAMILY)
             order_view.pack(expand=True, fill="both")
+        elif self.active_tab_name == "Công thức món ăn":
+            recipe_view = RecipeView(self.content_area, font_family=self.FONT_FAMILY)
+            recipe_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,
@@ -2995,6 +2998,555 @@ class OrderView(customtkinter.CTkFrame):
         save_btn = customtkinter.CTkButton(
             footer_buttons,
             text="Lưu đơn hàng",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            text_color="#ffffff",
+            corner_radius=6,
+            height=36,
+            command=popup.destroy
+        )
+        save_btn.pack(side="left", padx=5)
+
+
+class RecipeView(customtkinter.CTkFrame):
+    """Màn hình Công thức món ăn hiển thị danh sách các món ăn và chi tiết công thức."""
+    
+    def __init__(self, parent, font_family="Segoe UI"):
+        super().__init__(parent, fg_color="#f5f6f8", corner_radius=0)
+        self.FONT_FAMILY = font_family
+        
+        # Cấu hình grid chính cho RecipeView
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0) # Tiêu đề trang
+        self.grid_rowconfigure(1, weight=0) # Đường kẻ phân cách
+        self.grid_rowconfigure(2, weight=0) # Thẻ tổng quan
+        self.grid_rowconfigure(3, weight=1) # Vùng chứa bảng
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Thiết lập các thành phần giao diện chính."""
+        # 1. Tiêu đề góc trái trên cùng
+        self.title_label = customtkinter.CTkLabel(
+            self,
+            text="Công thức món ăn",
+            font=(self.FONT_FAMILY, 28, "bold"),
+            text_color="#000000",
+            anchor="w"
+        )
+        self.title_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+        
+        # Đường kẻ ngang phân cách ở dưới
+        self.divider = customtkinter.CTkFrame(
+            self,
+            height=1,
+            fg_color="#cbd5e1",
+            corner_radius=0
+        )
+        self.divider.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        
+        # 2. Thẻ Tổng Quan (Overview Cards)
+        cards_frame = customtkinter.CTkFrame(self, fg_color="transparent")
+        cards_frame.grid(row=2, column=0, sticky="ew", pady=(0, 15))
+        cards_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        cards_data = [
+            ("Tổng món ăn", "180", "#10b981"),       # xanh lá
+            ("Tổng nguyên liệu", "12.000.000", "#3b82f6") # xanh dương
+        ]
+        
+        for i, (title, value, color) in enumerate(cards_data):
+            card = customtkinter.CTkFrame(
+                cards_frame,
+                fg_color="#ffffff",
+                corner_radius=10,
+                border_width=1,
+                border_color="#e2e8f0",
+                height=90
+            )
+            card.grid(row=0, column=i, padx=(0 if i==0 else 15, 0), sticky="ew")
+            card.grid_propagate(False)
+            
+            lbl_title = customtkinter.CTkLabel(
+                card, 
+                text=title, 
+                font=(self.FONT_FAMILY, 12, "bold"), 
+                text_color="#64748b",
+                anchor="w"
+            )
+            lbl_title.pack(anchor="w", padx=15, pady=(15, 2))
+            
+            lbl_val = customtkinter.CTkLabel(
+                card, 
+                text=value, 
+                font=(self.FONT_FAMILY, 24, "bold"), 
+                text_color=color,
+                anchor="w"
+            )
+            lbl_val.pack(anchor="w", padx=15, pady=(0, 15))
+
+        # 3. Vùng chứa bảng (nền trắng)
+        self.table_container = customtkinter.CTkFrame(
+            self,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        self.table_container.grid(row=3, column=0, sticky="nsew", pady=(0, 15))
+        
+        # Toolbar
+        toolbar = customtkinter.CTkFrame(self.table_container, fg_color="transparent")
+        toolbar.pack(fill="x", padx=15, pady=15)
+        
+        search_entry = customtkinter.CTkEntry(
+            toolbar,
+            placeholder_text="Tìm kiếm công thức... 🔍",
+            font=(self.FONT_FAMILY, 12),
+            width=250,
+            height=34,
+            corner_radius=6,
+            fg_color="#f8fafc",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            placeholder_text_color="#94a3b8"
+        )
+        search_entry.pack(side="left")
+        
+        add_btn = customtkinter.CTkButton(
+            toolbar,
+            text="+ Thêm công thức",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#e0f2fe", # sky-100
+            hover_color="#bae6fd", # sky-200
+            text_color="#0369a1", # sky-700
+            corner_radius=6,
+            height=34,
+            command=self.open_add_recipe_form
+        )
+        add_btn.pack(side="right")
+        
+        # Bảng Treeview
+        import tkinter as tk
+        from tkinter import ttk
+        
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure(
+            "Recipe.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=32,
+            font=(self.FONT_FAMILY, 11),
+            borderwidth=0
+        )
+        
+        style.map(
+            "Recipe.Treeview",
+            background=[("selected", "#e0f2fe")],
+            foreground=[("selected", "#0369a1")]
+        )
+        
+        style.configure(
+            "Recipe.Treeview.Heading",
+            background="#E5E7EB",
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        table_frame = customtkinter.CTkFrame(self.table_container, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        columns = ("ma_ct", "ten_mon", "so_nl", "trang_thai")
+        
+        self.tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Recipe.Treeview"
+        )
+        
+        self.tree.tag_configure("evenrow", background="#ffffff")
+        self.tree.tag_configure("oddrow", background="#f8fafc")
+        
+        headers = {
+            "ma_ct": "Mã công thức",
+            "ten_mon": "Tên món ăn",
+            "so_nl": "Số nguyên liệu",
+            "trang_thai": "Trạng thái"
+        }
+        
+        for col, heading in headers.items():
+            self.tree.heading(col, text=heading, anchor="w")
+            if col == "ma_ct":
+                self.tree.column(col, anchor="center", width=120)
+            elif col == "so_nl":
+                self.tree.column(col, anchor="center", width=150)
+            elif col == "trang_thai":
+                self.tree.column(col, anchor="center", width=150)
+            else:
+                self.tree.column(col, anchor="w", width=250)
+                
+        mock_data = [
+            ("CT001", "Hamburger bò", "3", "Đang sử dụng"),
+            ("CT002", "Hamburger gà", "3", "Đang sử dụng"),
+            ("CT003", "Pizza hải sản", "4", "Đang sử dụng"),
+            ("CT004", "Khoai tây chiên", "1", "Đang sử dụng"),
+            ("CT005", "Mỳ Ý sốt bò bằm", "4", "Đang sử dụng")
+        ]
+        
+        for i, item in enumerate(mock_data):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.tree.insert("", "end", values=item, tags=(row_tag,))
+            
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def open_add_recipe_form(self):
+        """Mở popup thêm công thức món ăn mới (CTkToplevel)."""
+        popup = customtkinter.CTkToplevel(self)
+        popup.title("Thêm Công Thức Mới")
+        
+        popup_width = 700
+        popup_height = 550
+        
+        screen_w = popup.winfo_screenwidth()
+        screen_h = popup.winfo_screenheight()
+        try:
+            parent_w = self.winfo_toplevel().winfo_width()
+            parent_h = self.winfo_toplevel().winfo_height()
+            parent_x = self.winfo_toplevel().winfo_x()
+            parent_y = self.winfo_toplevel().winfo_y()
+            x = parent_x + (parent_w - popup_width) // 2
+            y = parent_y + (parent_h - popup_height) // 2
+        except:
+            x = (screen_w - popup_width) // 2
+            y = (screen_h - popup_height) // 2
+            
+        popup.geometry(f"{popup_width}x{popup_height}+{x}+{y}")
+        popup.resizable(False, False)
+        popup.grab_set()
+        
+        popup.grid_columnconfigure(0, weight=1)
+        popup.grid_rowconfigure(0, weight=0) # Header
+        popup.grid_rowconfigure(1, weight=1) # Main Scrollable content
+        popup.grid_rowconfigure(2, weight=0) # Footer
+        
+        # ── 1. Header (Xanh dương, chữ trắng) ──
+        header_frame = customtkinter.CTkFrame(
+            popup,
+            fg_color="#1e3a8a",
+            height=50,
+            corner_radius=0
+        )
+        header_frame.grid(row=0, column=0, sticky="ew")
+        header_frame.grid_propagate(False)
+        header_frame.grid_columnconfigure(0, weight=1)
+        header_frame.grid_rowconfigure(0, weight=1)
+        
+        header_title = customtkinter.CTkLabel(
+            header_frame,
+            text="Công thức món ăn 🍔",
+            font=(self.FONT_FAMILY, 18, "bold"),
+            text_color="#ffffff",
+            anchor="w"
+        )
+        header_title.grid(row=0, column=0, padx=20, sticky="w")
+        
+        # ── 2. Nội dung chính cuộn được ──
+        scroll_content = customtkinter.CTkScrollableFrame(
+            popup,
+            fg_color="#f8fafc",
+            corner_radius=0
+        )
+        scroll_content.grid(row=1, column=0, sticky="nsew")
+        scroll_content.grid_columnconfigure(0, weight=1)
+        
+        # Section 1: Thông tin công thức
+        section1_card = customtkinter.CTkFrame(
+            scroll_content,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        section1_card.pack(fill="x", padx=15, pady=(15, 10))
+        section1_card.grid_columnconfigure((0, 1), weight=1)
+        
+        sec1_title = customtkinter.CTkLabel(
+            section1_card,
+            text="Thông tin công thức",
+            font=(self.FONT_FAMILY, 14, "bold"),
+            text_color="#1e3a8a",
+            anchor="w"
+        )
+        sec1_title.grid(row=0, column=0, columnspan=2, padx=15, pady=(15, 10), sticky="w")
+        
+        # Cột 1: Mã công thức *
+        col1_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        col1_frame.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="ew")
+        lbl_ma = customtkinter.CTkLabel(col1_frame, text="Mã công thức *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_ma.pack(anchor="w", pady=(0, 2))
+        entry_ma = customtkinter.CTkEntry(col1_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
+        entry_ma.insert(0, "CT006")
+        entry_ma.pack(fill="x")
+        
+        # Cột 2: Tên món ăn *
+        col2_frame = customtkinter.CTkFrame(section1_card, fg_color="transparent")
+        col2_frame.grid(row=1, column=1, padx=15, pady=(0, 15), sticky="ew")
+        lbl_ten = customtkinter.CTkLabel(col2_frame, text="Tên món ăn *", font=(self.FONT_FAMILY, 12, "bold"), text_color="#475569")
+        lbl_ten.pack(anchor="w", pady=(0, 2))
+        entry_ten = customtkinter.CTkEntry(col2_frame, height=32, corner_radius=6, border_color="#cbd5e1", fg_color="#f8fafc")
+        entry_ten.insert(0, "Hamburger")
+        entry_ten.pack(fill="x")
+        
+        # Section 2: Chi tiết công thức
+        section2_card = customtkinter.CTkFrame(
+            scroll_content,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        section2_card.pack(fill="both", expand=True, padx=15, pady=(10, 15))
+        
+        sec2_header = customtkinter.CTkFrame(section2_card, fg_color="transparent")
+        sec2_header.pack(fill="x", padx=15, pady=(15, 10))
+        
+        sec2_title = customtkinter.CTkLabel(
+            sec2_header,
+            text="Chi tiết công thức",
+            font=(self.FONT_FAMILY, 14, "bold"),
+            text_color="#1e3a8a",
+            anchor="w"
+        )
+        sec2_title.pack(side="left")
+        
+        add_row_btn = customtkinter.CTkButton(
+            sec2_header,
+            text="+ Thêm nguyên liệu",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            fg_color="#10b981", # Xanh lá
+            hover_color="#059669",
+            text_color="#ffffff",
+            corner_radius=6,
+            height=28,
+            command=lambda: add_row()
+        )
+        add_row_btn.pack(side="right")
+        
+        # Lưới nhập liệu
+        grid_frame = customtkinter.CTkFrame(
+            section2_card,
+            fg_color="#f8fafc",
+            corner_radius=6,
+            border_width=1,
+            border_color="#cbd5e1"
+        )
+        grid_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        grid_frame.grid_columnconfigure(0, weight=5)   # Stt
+        grid_frame.grid_columnconfigure(1, weight=35)  # Nguyên liệu *
+        grid_frame.grid_columnconfigure(2, weight=25)  # Số lượng *
+        grid_frame.grid_columnconfigure(3, weight=20)  # Đơn vị
+        grid_frame.grid_columnconfigure(4, weight=5)   # Xóa
+        
+        headers_sec2 = ["Stt", "Nguyên liệu *", "Số lượng *", "Đơn vị", ""]
+        for col_idx, h_text in enumerate(headers_sec2):
+            lbl = customtkinter.CTkLabel(
+                grid_frame,
+                text=h_text,
+                font=(self.FONT_FAMILY, 11, "bold"),
+                text_color="#475569",
+                anchor="center"
+            )
+            lbl.grid(row=0, column=col_idx, padx=4, pady=8, sticky="ew")
+            
+        rows = []
+        
+        def add_row():
+            row_idx = len(rows) + 1
+            grid_row = row_idx
+            
+            lbl_stt = customtkinter.CTkLabel(grid_frame, text=str(row_idx), font=(self.FONT_FAMILY, 11), text_color="#1e293b")
+            lbl_stt.grid(row=grid_row, column=0, padx=4, pady=5)
+            
+            combo_nl = customtkinter.CTkComboBox(
+                grid_frame,
+                values=["Thịt bò", "Thịt heo", "Rau xà lách", "Bánh mì", "Bột mì", "Cà chua", "Phô mai", "Trứng"],
+                font=(self.FONT_FAMILY, 11),
+                dropdown_font=(self.FONT_FAMILY, 11),
+                height=28,
+                corner_radius=4,
+                border_color="#cbd5e1"
+            )
+            combo_nl.set("Thịt bò")
+            combo_nl.grid(row=grid_row, column=1, padx=4, pady=5, sticky="ew")
+            
+            # Spinner cho Số lượng *
+            spinner_frame = customtkinter.CTkFrame(grid_frame, fg_color="transparent")
+            spinner_frame.grid(row=grid_row, column=2, padx=4, pady=5)
+            
+            entry_qty = customtkinter.CTkEntry(
+                spinner_frame, 
+                width=45, 
+                height=28, 
+                corner_radius=4, 
+                border_color="#cbd5e1", 
+                font=(self.FONT_FAMILY, 11), 
+                justify="center"
+            )
+            entry_qty.insert(0, "2")
+            
+            def decrease_qty():
+                try:
+                    val = float(entry_qty.get())
+                    if val > 1:
+                        entry_qty.delete(0, "end")
+                        if val.is_integer():
+                            entry_qty.insert(0, str(int(val - 1)))
+                        else:
+                            entry_qty.insert(0, f"{val - 1:.1f}")
+                except:
+                    pass
+                    
+            def increase_qty():
+                try:
+                    val = float(entry_qty.get())
+                    entry_qty.delete(0, "end")
+                    if val.is_integer():
+                        entry_qty.insert(0, str(int(val + 1)))
+                    else:
+                        entry_qty.insert(0, f"{val + 1:.1f}")
+                except:
+                    pass
+                    
+            btn_minus = customtkinter.CTkButton(
+                spinner_frame, 
+                text="-", 
+                width=24, 
+                height=28, 
+                fg_color="#e2e8f0", 
+                hover_color="#cbd5e1", 
+                text_color="#0f172a", 
+                font=(self.FONT_FAMILY, 11, "bold"),
+                corner_radius=4,
+                command=decrease_qty
+            )
+            btn_minus.pack(side="left")
+            
+            entry_qty.pack(side="left", padx=4)
+            
+            btn_plus = customtkinter.CTkButton(
+                spinner_frame, 
+                text="+", 
+                width=24, 
+                height=28, 
+                fg_color="#e2e8f0", 
+                hover_color="#cbd5e1", 
+                text_color="#0f172a", 
+                font=(self.FONT_FAMILY, 11, "bold"),
+                corner_radius=4,
+                command=increase_qty
+            )
+            btn_plus.pack(side="left")
+            
+            combo_dv = customtkinter.CTkComboBox(
+                grid_frame,
+                values=["kg", "g", "cái", "lít", "muỗng"],
+                font=(self.FONT_FAMILY, 11),
+                dropdown_font=(self.FONT_FAMILY, 11),
+                height=28,
+                corner_radius=4,
+                border_color="#cbd5e1"
+            )
+            combo_dv.set("kg")
+            combo_dv.grid(row=grid_row, column=3, padx=4, pady=5, sticky="ew")
+            
+            row_widgets = {
+                "stt_lbl": lbl_stt,
+                "combo_nl": combo_nl,
+                "spinner_frame": spinner_frame,
+                "combo_dv": combo_dv,
+            }
+            
+            def delete_row():
+                rows.remove(row_widgets)
+                for w in row_widgets.values():
+                    w.destroy()
+                for i, r_w in enumerate(rows):
+                    new_idx = i + 1
+                    r_w["stt_lbl"].configure(text=str(new_idx))
+                    r_w["stt_lbl"].grid(row=new_idx, column=0)
+                    r_w["combo_nl"].grid(row=new_idx, column=1)
+                    r_w["spinner_frame"].grid(row=new_idx, column=2)
+                    r_w["combo_dv"].grid(row=new_idx, column=3)
+                    r_w["del_btn"].grid(row=new_idx, column=4)
+            
+            del_btn = customtkinter.CTkButton(
+                grid_frame,
+                text="🗑️",
+                font=(self.FONT_FAMILY, 11),
+                fg_color="#fee2e2",
+                hover_color="#fca5a5",
+                text_color="#ef4444",
+                corner_radius=4,
+                height=28,
+                width=28,
+                command=delete_row
+            )
+            del_btn.grid(row=grid_row, column=4, padx=4, pady=5)
+            row_widgets["del_btn"] = del_btn
+            
+            rows.append(row_widgets)
+            
+        # Thêm dòng mặc định đầu tiên
+        add_row()
+        
+        # ── 3. Footer (Nút Hủy và Lưu công thức) ──
+        footer_frame = customtkinter.CTkFrame(
+            popup,
+            fg_color="#ffffff",
+            height=60,
+            corner_radius=0,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        footer_frame.grid(row=2, column=0, sticky="ew")
+        footer_frame.grid_propagate(False)
+        footer_frame.grid_columnconfigure(0, weight=1)
+        footer_frame.grid_rowconfigure(0, weight=1)
+        
+        footer_buttons = customtkinter.CTkFrame(footer_frame, fg_color="transparent")
+        footer_buttons.pack(side="right", padx=20)
+        
+        cancel_btn = customtkinter.CTkButton(
+            footer_buttons,
+            text="Hủy",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#ffffff",
+            border_width=1,
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            hover_color="#f1f5f9",
+            corner_radius=6,
+            height=36,
+            width=80,
+            command=popup.destroy
+        )
+        cancel_btn.pack(side="left", padx=5)
+        
+        save_btn = customtkinter.CTkButton(
+            footer_buttons,
+            text="Lưu công thức",
             font=(self.FONT_FAMILY, 12, "bold"),
             fg_color="#3b82f6",
             hover_color="#2563eb",

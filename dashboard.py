@@ -196,13 +196,13 @@ class DashboardWindow(customtkinter.CTk):
         self.header_right_frame.grid(row=0, column=1, sticky="e")
 
         # ── 2. Đường kẻ phân cách ──
-        divider = customtkinter.CTkFrame(
+        self.main_divider = customtkinter.CTkFrame(
             self.main_frame,
             height=1,
             fg_color=self.DIVIDER_COLOR,
             corner_radius=0
         )
-        divider.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        self.main_divider.grid(row=1, column=0, sticky="ew", pady=(0, 15))
 
         # ── 3. Vùng chứa nội dung động ──
         self.content_area = customtkinter.CTkFrame(
@@ -223,6 +223,16 @@ class DashboardWindow(customtkinter.CTk):
         for widget in self.header_right_frame.winfo_children():
             widget.destroy()
 
+        # Hiển thị hoặc ẩn header & divider dựa trên tab hoạt động
+        if self.active_tab_name == "Quản lý nhà cung cấp":
+            self.header_frame.grid_remove()
+            if hasattr(self, 'main_divider'):
+                self.main_divider.grid_remove()
+        else:
+            self.header_frame.grid()
+            if hasattr(self, 'main_divider'):
+                self.main_divider.grid()
+
         if self.active_tab_name == "Dashboard":
             self.load_dashboard_content()
         elif self.active_tab_name == "Tồn kho":
@@ -234,6 +244,9 @@ class DashboardWindow(customtkinter.CTk):
         elif self.active_tab_name == "Xuất Kho":
             export_view = ExportView(self.content_area, font_family=self.FONT_FAMILY)
             export_view.pack(expand=True, fill="both")
+        elif self.active_tab_name == "Quản lý nhà cung cấp":
+            supplier_view = SupplierView(self.content_area, font_family=self.FONT_FAMILY)
+            supplier_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,
@@ -1598,6 +1611,185 @@ class ExportView(customtkinter.CTkScrollableFrame):
         tree.configure(yscrollcommand=scrollbar.set)
         
         tree.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+ 
+ 
+class SupplierView(customtkinter.CTkFrame):
+    """Màn hình Quản lý nhà cung cấp sử dụng Mock data."""
+    
+    def __init__(self, parent, font_family="Segoe UI"):
+        super().__init__(parent, fg_color="#f5f6f8", corner_radius=0)
+        self.FONT_FAMILY = font_family
+        
+        # Cấu hình grid cho màn hình chính của SupplierView
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=0) # Tiêu đề trang
+        self.grid_rowconfigure(1, weight=0) # Đường kẻ phân cách
+        self.grid_rowconfigure(2, weight=1) # Vùng chứa bảng (Table container)
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        """Thiết lập các thành phần giao diện chính."""
+        # 1. Tiêu đề góc trái trên cùng
+        self.title_label = customtkinter.CTkLabel(
+            self,
+            text="Quản lý nhà cung cấp",
+            font=(self.FONT_FAMILY, 28, "bold"),
+            text_color="#000000",
+            anchor="w"
+        )
+        self.title_label.grid(row=0, column=0, sticky="w", pady=(0, 10))
+        
+        # Đường kẻ ngang mờ ở dưới để phân cách không gian
+        self.divider = customtkinter.CTkFrame(
+            self,
+            height=1,
+            fg_color="#cbd5e1",
+            corner_radius=0
+        )
+        self.divider.grid(row=1, column=0, sticky="ew", pady=(0, 15))
+        
+        # 2. Khu vực Bảng (Table Container) - nền trắng, bo góc, có viền
+        self.table_container = customtkinter.CTkFrame(
+            self,
+            fg_color="#ffffff",
+            corner_radius=8,
+            border_width=1,
+            border_color="#e2e8f0"
+        )
+        self.table_container.grid(row=2, column=0, sticky="nsew", pady=(0, 15))
+        
+        # Thanh công cụ (Toolbar) bên trong table_container
+        self.toolbar = customtkinter.CTkFrame(
+            self.table_container,
+            fg_color="transparent"
+        )
+        self.toolbar.pack(fill="x", padx=15, pady=15)
+        
+        # Ô tìm kiếm bên trái
+        self.search_entry = customtkinter.CTkEntry(
+            self.toolbar,
+            placeholder_text="Tìm mã hoặc tên nhà cung cấp 🔍",
+            font=(self.FONT_FAMILY, 12),
+            width=300,
+            height=34,
+            corner_radius=6,
+            fg_color="#f8fafc",
+            border_color="#cbd5e1",
+            text_color="#0f172a",
+            placeholder_text_color="#94a3b8"
+        )
+        self.search_entry.pack(side="left")
+        
+        # Nút "+ Thêm nhà cung cấp" bên phải màu xanh dương nhạt
+        self.add_btn = customtkinter.CTkButton(
+            self.toolbar,
+            text="+ Thêm nhà cung cấp",
+            font=(self.FONT_FAMILY, 12, "bold"),
+            fg_color="#e0f2fe", # sky-100
+            hover_color="#bae6fd", # sky-200
+            text_color="#0369a1", # sky-700
+            corner_radius=6,
+            height=34
+        )
+        self.add_btn.pack(side="right")
+        
+        # Gọi hàm tạo bảng
+        self.setup_table()
+        
+    def setup_table(self):
+        """Cấu hình bảng ttk.Treeview hiển thị thông tin nhà cung cấp."""
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Cấu hình style cho Treeview
+        style = ttk.Style()
+        style.theme_use("clam")
+        
+        style.configure(
+            "Supplier.Treeview",
+            background="#ffffff",
+            foreground="#1e293b",
+            fieldbackground="#ffffff",
+            rowheight=32,
+            font=(self.FONT_FAMILY, 11),
+            borderwidth=0
+        )
+        
+        style.map(
+            "Supplier.Treeview",
+            background=[("selected", "#e0f2fe")],
+            foreground=[("selected", "#0369a1")]
+        )
+        
+        style.configure(
+            "Supplier.Treeview.Heading",
+            background="#E5E7EB", # Nền tiêu đề xám nhạt như yêu cầu
+            foreground="#475569",
+            font=(self.FONT_FAMILY, 11, "bold"),
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        # Khung bọc bảng và thanh cuộn
+        table_frame = customtkinter.CTkFrame(self.table_container, fg_color="transparent")
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        columns = ("ma_ncc", "ten_ncc", "dia_chi", "sdt", "email", "loai_ncc")
+        
+        self.tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show="headings",
+            style="Supplier.Treeview"
+        )
+        
+        # Cấu hình thẻ Zebra Row tag
+        self.tree.tag_configure("evenrow", background="#ffffff")
+        self.tree.tag_configure("oddrow", background="#f8fafc")
+        
+        # Tiêu đề cột
+        headers = {
+            "ma_ncc": "Mã nhà cc",
+            "ten_ncc": "Tên nhà cung cấp",
+            "dia_chi": "Địa chỉ",
+            "sdt": "Số điện thoại",
+            "email": "Email",
+            "loai_ncc": "Loại nhà cung cấp"
+        }
+        
+        for col, heading in headers.items():
+            self.tree.heading(col, text=heading, anchor="w")
+            if col == "ma_ncc":
+                self.tree.column(col, anchor="center", width=100)
+            elif col == "sdt":
+                self.tree.column(col, anchor="center", width=120)
+            elif col == "loai_ncc":
+                self.tree.column(col, anchor="w", width=140)
+            elif col == "dia_chi":
+                self.tree.column(col, anchor="w", width=220)
+            else:
+                self.tree.column(col, anchor="w", width=180)
+                
+        # Dữ liệu giả (Mock data)
+        mock_data = [
+            ("NCC001", "Công ty TNHH thực phẩm", "242 Huỳnh Văn Nghệ", "0123456789", "xyz.@gmail.com", "NCC chính"),
+            ("NCC002", "Công ty TNHH thực phẩm", "242 Huỳnh Văn Nghệ", "0123456789", "xyz.@gmail.com", "NCC phụ"),
+            ("NCC003", "Nhà phân phối nông sản Sạch", "12 Hoàng Hoa Thám", "0987654321", "nongsansach@gmail.com", "NCC phụ"),
+            ("NCC004", "Tổng kho gia vị miền Nam", "456 Lê Lợi", "0911223344", "giavimiennam@gmail.com", "NCC chính"),
+            ("NCC005", "Đại lý bao bì Hoàng Gia", "789 Nguyễn Huệ", "0933445566", "hoanggia@gmail.com", "NCC phụ"),
+            ("NCC006", "Nước đá tinh khiết Bình Minh", "321 Trần Hưng Đạo", "0944556677", "binhminh@gmail.com", "NCC phụ"),
+        ]
+        
+        for i, item in enumerate(mock_data):
+            row_tag = "evenrow" if i % 2 == 0 else "oddrow"
+            self.tree.insert("", "end", values=item, tags=(row_tag,))
+            
+        scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.tree.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
 

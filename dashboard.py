@@ -2,6 +2,7 @@ import customtkinter
 import ctypes
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
+from prediction_view import PredictionView
 
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(1)
@@ -32,6 +33,7 @@ class DashboardWindow(customtkinter.CTk):
         ("Quản lý nhà cung cấp", "👥"),
         ("Quản lý đơn hàng", "📋"),
         ("Công thức món ăn", "🍳"),
+        ("Dự đoán tháng tới", "🔮"),
     ]
 
     def __init__(self):
@@ -224,7 +226,7 @@ class DashboardWindow(customtkinter.CTk):
             widget.destroy()
 
         # Hiển thị hoặc ẩn header & divider dựa trên tab hoạt động
-        if self.active_tab_name in ["Quản lý nhà cung cấp", "Quản lý đơn hàng", "Công thức món ăn"]:
+        if self.active_tab_name in ["Quản lý nhà cung cấp", "Quản lý đơn hàng", "Công thức món ăn", "Dự đoán tháng tới"]:
             self.header_frame.grid_remove()
             if hasattr(self, 'main_divider'):
                 self.main_divider.grid_remove()
@@ -253,6 +255,9 @@ class DashboardWindow(customtkinter.CTk):
         elif self.active_tab_name == "Công thức món ăn":
             recipe_view = RecipeView(self.content_area, font_family=self.FONT_FAMILY)
             recipe_view.pack(expand=True, fill="both")
+        elif self.active_tab_name == "Dự đoán tháng tới":
+            prediction_view = PredictionView(self.content_area, font_family=self.FONT_FAMILY)
+            prediction_view.pack(expand=True, fill="both")
         else:
             placeholder_label = customtkinter.CTkLabel(
                 self.content_area,

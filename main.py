@@ -132,27 +132,16 @@ class WarehouseLoginApp(customtkinter.CTk):
         )
         footer_label.pack(side="bottom", anchor="w", padx=50, pady=(0, 60))
 
-        # Áp dụng pywinstyles tạo độ trong suốt sắc nét trên Windows
-        try:
-            import pywinstyles
-            self.update()
-            
-            # Sử dụng key color là "#fffffe" (gần như trắng) làm màu nền cho content_frame.
-            # Tất cả các nhãn (labels) bên trong có fg_color="transparent", do đó chúng sẽ tự động thừa kế 
-            # màu nền "#fffffe" này. Khi áp dụng set_opacity cho content_frame với màu key này, 
-            # Windows sẽ khử toàn bộ màu nền của cả khung và các nhãn chữ con cùng lúc, 
-            # giữ lại phần text sắc nét nguyên bản mà không bị vẽ chồng lấn/rỗ chữ.
-            key_color = "#fffffe"
-            content_frame.configure(fg_color=key_color)
-            
-            self.update()
-            
-            # Chỉ áp dụng set_opacity duy nhất một lần cho content_frame. 
-            # Tuyệt đối không gọi cho từng label con để tránh tạo ra nhiều lớp cửa sổ lồng nhau gây nhòe và lặp nét chữ.
-            pywinstyles.set_opacity(content_frame, color=key_color)
-        except Exception:
-            # Nếu lỗi hoặc máy người khác không cài pywinstyles, trả lại màu trong suốt để hiện ảnh nền
-            content_frame.configure(fg_color="transparent")
+        # Đã tắt pywinstyles để đảm bảo tương thích 100% trên mọi máy (không bị lỗi mất nền do Windows DWM/Google Meet)
+        # try:
+        #     import pywinstyles
+        #     self.update()
+        #     key_color = "#fffffe"
+        #     content_frame.configure(fg_color=key_color)
+        #     self.update()
+        #     pywinstyles.set_opacity(content_frame, color=key_color)
+        # except Exception:
+        #     content_frame.configure(fg_color="transparent")
 
 
 

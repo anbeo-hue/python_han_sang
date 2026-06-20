@@ -57,12 +57,12 @@ class WarehouseLoginApp(customtkinter.CTk):
         bg_image_pil = enhancer.enhance(0.4)
 
         # 3. Đưa vào 1 CTkLabel duy nhất phủ kín cột trái
-        bg_image = customtkinter.CTkImage(light_image=bg_image_pil, dark_image=bg_image_pil, size=(600, 600))
-        bg_label = customtkinter.CTkLabel(left_frame, image=bg_image, text="", fg_color="transparent")
-        bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+        self.bg_image = customtkinter.CTkImage(light_image=bg_image_pil, dark_image=bg_image_pil, size=(600, 600))
+        self.bg_label = customtkinter.CTkLabel(left_frame, image=self.bg_image, text="", fg_color="transparent")
+        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
         # 4. Gom toàn bộ text vào 1 content_frame đè lên bg_label
-        content_frame = customtkinter.CTkFrame(bg_label, fg_color="transparent", corner_radius=0)
+        content_frame = customtkinter.CTkFrame(self.bg_label, fg_color="transparent", corner_radius=0)
         content_frame.place(relx=0, rely=0, relwidth=1, relheight=1)
 
         # ── Header nhỏ ──

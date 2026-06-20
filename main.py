@@ -151,7 +151,8 @@ class WarehouseLoginApp(customtkinter.CTk):
             # Tuyệt đối không gọi cho từng label con để tránh tạo ra nhiều lớp cửa sổ lồng nhau gây nhòe và lặp nét chữ.
             pywinstyles.set_opacity(content_frame, color=key_color)
         except Exception:
-            pass
+            # Nếu lỗi hoặc máy người khác không cài pywinstyles, trả lại màu trong suốt để hiện ảnh nền
+            content_frame.configure(fg_color="transparent")
 
 
 
